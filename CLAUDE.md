@@ -47,6 +47,37 @@ Links de Maps compartidos desde iPhone (maps.app.goo.gl/...?g_st=ic): el primer 
 - No guardar DNI, IP ni user-agent completo.
 - Nunca un error 500 al público.
 
+## Login y sesión (aprobado 2026-11-11)
+
+- Usuario y contraseña propios. PBKDF2-SHA256 con 25 000 iteraciones; el número va
+  guardado dentro del hash (`pbkdf2$iteraciones$sal$hash`) para poder subirlo.
+- Contraseñas generadas por `scripts/crear_usuario.py`, no elegidas por la persona.
+- Cookie firmada, 30 días, `Secure; HttpOnly; SameSite=Lax; Path=/`. Debe enviarse cuando
+  el navegador se abre desde un toque NFC o un QR (navegación iniciada fuera del sitio).
+- En cada solicitud con cookie se comprueba en la base que el usuario siga activo.
+- Límite de intentos: 5 fallos bloquean 15 minutos.
+- Los escaneos hechos con sesión no se registran en estadísticas.
+- Placa desactivada: al público lo manda a la landing; con sesión muestra la ficha con
+  botón para reactivarla, conservando sus datos.
+
+## Etapas de la fase 1
+
+1. Esqueleto (TypeScript estricto, tests, Worker de desarrollo en workers.dev).
+2. Base: migraciones, catálogo D–H, datos de prueba.
+3. Redirección pública y landing.
+4. Conectar tokaloperu.com (los registros A de Spaceship ya están borrados).
+5. Estadísticas.
+6. Login.
+7. Códigos y lotes.
+8. QR en SVG (se prueba con la URL real).
+9. Conversión de Maps.
+10. Activación.
+11. Admin.
+12. README y respaldo.
+
+Desde la etapa 4 hay dos entornos: desarrollo (workers.dev) y producción (tokaloperu.com).
+Cada etapa se despliega primero a desarrollo; a producción solo con aviso previo.
+
 ## Códigos de placa
 
 - 6 caracteres. Alfabeto de 28: consonantes sin L (BCDFGHJKMNPQRSTVWXYZ) y dígitos 2–9.
