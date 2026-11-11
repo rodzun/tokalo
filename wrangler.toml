@@ -1,0 +1,15 @@
+# Configuración del Worker.
+# El entorno por defecto es DESARROLLO (tokalo-dev en workers.dev).
+# Producción (tokaloperu.com) se añade en la etapa 4 como [env.produccion],
+# así un "wrangler deploy" a secas nunca toca el dominio real.
+
+name = "tokalo-dev"
+main = "src/index.ts"
+compatibility_date = "2026-11-10"
+workers_dev = true
+
+# Logs del Worker: guarda cada solicitud y cada console.error para verlos
+# en el panel de Cloudflare (Workers > tokalo-dev > Logs). Gratis hasta
+# 200 000 eventos al día.
+[observability]
+enabled = true

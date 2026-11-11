@@ -7,3 +7,4 @@ __pycache__/
 python_modules/
 pylock.toml
 uv.lock
+worker-configuration.d.ts

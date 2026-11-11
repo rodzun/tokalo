@@ -1,28 +1,18 @@
 {
   "name": "tokalo",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "wrangler dev",
+    "test": "vitest run",
+    "revisar": "wrangler types && tsc --noEmit",
+    "desplegar": "wrangler deploy"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/rodzun/tokalo.git"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
-  "bugs": {
-    "url": "https://github.com/rodzun/tokalo/issues"
-  },
-  "homepage": "https://github.com/rodzun/tokalo#readme",
   "devDependencies": {
+    "@cloudflare/vitest-plugin": "^1.7.0",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.0",
     "wrangler": "^4.160.0"
-  },
-  "allowScripts": {
-    "esbuild@0.28.2": true,
-    "workerd@1.20261110.1": true
   }
 }
