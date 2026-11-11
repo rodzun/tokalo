@@ -1,5 +1,6 @@
 // Rutas públicas: lo que ve cualquier persona, sin iniciar sesión.
 import { normalizarCodigo } from "../lib/codigos";
+import { type Canal, debeContarse, registrarEscaneo } from "../lib/escaneos";
 import { ICONO_SVG } from "../lib/html";
 import { html, redirigir } from "../lib/respuestas";
 import { landing } from "../vistas/landing";
@@ -25,7 +26,13 @@ export function esHttps(texto: string | null): texto is string {
  * Sin sesión: placa activa -> 302 a su destino; todo lo demás -> landing.
  * (El comportamiento con sesión llega con el login.)
  */
-export async function escaneo(env: Env, codigoRecibido: string): Promise<Response> {
+export async function escaneo(
+  solicitud: Request,
+  env: Env,
+  ctx: ExecutionContext,
+  canal: Canal,
+  codigoRecibido: string,
+): Promise<Response> {
   // Si no tiene forma de código de Tokalo, ni consultamos la base.
   const codigo = normalizarCodigo(codigoRecibido);
   if (codigo === null) return redirigir("/");
@@ -35,10 +42,27 @@ export async function escaneo(env: Env, codigoRecibido: string): Promise<Respons
     .first<PlacaParaRedirigir>();
 
   // `placa` es null si el código no existe.
-  if (placa !== null && placa.estado === "activa" && esHttps(placa.destino)) {
-    return redirigir(placa.destino);
+  if (placa === null || placa.estado !== "activa" || !esHttps(placa.destino)) {
+    return redirigir("/");
   }
-  return redirigir("/");
+
+  // Estadísticas. `waitUntil` deja la escritura corriendo DESPUÉS de enviar
+  // la respuesta: la persona no espera por ella. Si falla, solo queda en los
+  // logs; la redirección ya salió y no depende de esto.
+  const conSesion = false; // se sabrá de verdad cuando exista el login
+  if (debeContarse(solicitud, conSesion)) {
+    ctx.waitUntil(
+      registrarEscaneo(env.DB, codigo, canal, solicitud).catch((error: unknown) => {
+        console.error("escaneo_no_registrado", {
+          codigo,
+          canal,
+          mensaje: error instanceof Error ? error.message : String(error),
+        });
+      }),
+    );
+  }
+
+  return redirigir(placa.destino);
 }
 
 /** GET / : la landing. El navegador puede guardarla 5 minutos. */

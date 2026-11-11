@@ -19,7 +19,7 @@ export type Enrutador = (
 const RUTA_ESCANEO = /^\/([nq])\/([^/]+)\/?$/i;
 
 /** Rutas del sitio. */
-export const enrutar: Enrutador = async (solicitud, env) => {
+export const enrutar: Enrutador = async (solicitud, env, ctx) => {
   const url = new URL(solicitud.url);
   const ruta = url.pathname;
 
@@ -37,8 +37,9 @@ export const enrutar: Enrutador = async (solicitud, env) => {
 
     const coincide = RUTA_ESCANEO.exec(ruta);
     if (coincide !== null) {
-      // coincide[1] es el canal (n o q); se usará para las estadísticas.
-      return escaneo(env, coincide[2] ?? "");
+      // coincide[1] es el canal y coincide[2] el código.
+      const canal = coincide[1]?.toLowerCase() === "q" ? "q" : "n";
+      return escaneo(solicitud, env, ctx, canal, coincide[2] ?? "");
     }
 
     if (ruta === "/favicon.ico") return icono();
