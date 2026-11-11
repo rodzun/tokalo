@@ -65,19 +65,62 @@ export async function crearLote(
   throw new Error("No se pudo crear el lote: demasiados códigos repetidos");
 }
 
+// ───────────────────────── Estado de impresión ─────────────────────────
+// "generado": recién creado, todavía no se fabricó. Se puede eliminar.
+// "impreso":  ya se mandó a fabricar. No se puede eliminar.
+
 /**
- * Elimina un lote y sus placas, solo si NINGUNA fue activada alguna vez.
- * Devuelve true si se eliminó. Las dos sentencias van en una transacción y
- * cada una vuelve a comprobar la condición, así que nunca borra a medias.
+ * Condición SQL: "el lote ?1 tiene alguna placa usada", es decir, activada
+ * alguna vez (activa o desactivada) o con escaneos registrados.
+ */
+const TIENE_PLACAS_USADAS = `EXISTS (
+  SELECT 1 FROM placas p WHERE p.lote = ?1
+  AND (p.estado != 'sin_activar' OR EXISTS (SELECT 1 FROM escaneos e WHERE e.codigo = p.codigo))
+)`;
+
+/** Marca un lote como impreso, anotando quién y cuándo. Devuelve true si cambió. */
+export async function marcarImpreso(db: D1Database, numero: number, idUsuario: number): Promise<boolean> {
+  const r = await db
+    .prepare(
+      `UPDATE lotes SET estado = 'impreso', estado_cambiado_en = ?2, estado_cambiado_por = ?3
+       WHERE id = ?1 AND estado = 'generado'`,
+    )
+    .bind(numero, ahoraUtc(), idUsuario)
+    .run();
+  return r.meta.changes > 0;
+}
+
+/**
+ * Devuelve un lote a "generado". Solo si ninguna de sus placas fue activada
+ * ni tiene escaneos: si alguna ya está en uso, el lote existe físicamente.
+ */
+export async function desmarcarImpreso(db: D1Database, numero: number, idUsuario: number): Promise<boolean> {
+  const r = await db
+    .prepare(
+      `UPDATE lotes SET estado = 'generado', estado_cambiado_en = ?2, estado_cambiado_por = ?3
+       WHERE id = ?1 AND estado = 'impreso' AND NOT ${TIENE_PLACAS_USADAS}`,
+    )
+    .bind(numero, ahoraUtc(), idUsuario)
+    .run();
+  return r.meta.changes > 0;
+}
+
+/**
+ * Elimina un lote y sus placas. Solo si está en "generado" (y, por
+ * seguridad, si ninguna placa fue usada). Devuelve true si se eliminó.
+ * Las dos sentencias van en una transacción y cada una vuelve a comprobar
+ * la condición, así que nunca borra a medias.
  */
 export async function eliminarLote(db: D1Database, numero: number): Promise<boolean> {
   const [, lote] = await db.batch([
     db.prepare(
       `DELETE FROM placas WHERE lote = ?1
-       AND NOT EXISTS (SELECT 1 FROM placas WHERE lote = ?1 AND estado != 'sin_activar')`,
+       AND EXISTS (SELECT 1 FROM lotes WHERE id = ?1 AND estado = 'generado')
+       AND NOT ${TIENE_PLACAS_USADAS}`,
     ).bind(numero),
     db.prepare(
-      "DELETE FROM lotes WHERE id = ?1 AND NOT EXISTS (SELECT 1 FROM placas WHERE lote = ?1)",
+      `DELETE FROM lotes WHERE id = ?1 AND estado = 'generado'
+       AND NOT EXISTS (SELECT 1 FROM placas WHERE lote = ?1)`,
     ).bind(numero),
   ]);
   return (lote?.meta.changes ?? 0) > 0;

@@ -60,6 +60,7 @@ nav a{color:#111827;font-weight:600;text-decoration:none}
 .fila span{display:block;color:#4b5563;font-size:.9375rem}
 .fila a{display:inline-block;margin:.5rem 1rem 0 0;font-weight:600}
 .fila a.peligro{color:#b91c1c}
+.fila form{margin:.6rem 0 0}
 .fila p{margin:0 0 .5rem}
 .fila .rotulo{color:#6b7280;font-size:.8125rem;text-transform:uppercase;letter-spacing:.04em}
 .fila .valor{display:block;color:#111827;font-size:1rem;overflow-wrap:anywhere}

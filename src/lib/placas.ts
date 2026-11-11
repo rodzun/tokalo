@@ -68,8 +68,9 @@ export function esDestinoValido(destino: string): boolean {
 }
 
 /**
- * Activa una placa: guarda los datos, el destino, quién y cuándo, y anota
- * el primer destino en el historial. Todo en una transacción.
+ * Activa una placa: guarda los datos, el destino, quién y cuándo, anota el
+ * primer destino en el historial y marca su lote como impreso. Todo en una
+ * transacción.
  *
  * Solo actúa si la placa sigue "sin_activar": un doble envío del formulario
  * no hace nada la segunda vez. Devuelve true si la placa quedó activada.
@@ -96,6 +97,13 @@ export async function activarPlaca(
       `INSERT INTO cambios_destino (codigo, destino_anterior, destino_nuevo, usuario_id, cambiado_en)
        SELECT ?, NULL, ?, ?, ? WHERE changes() > 0`,
     ).bind(codigo, destino, idUsuario, ahora),
+    // Si se activó una placa, su lote existe físicamente: pasa a "impreso"
+    // (si no lo estaba ya). Así un lote "generado" nunca tiene placas activadas.
+    db.prepare(
+      `UPDATE lotes SET estado = 'impreso', estado_cambiado_en = ?1, estado_cambiado_por = ?2
+       WHERE estado = 'generado'
+       AND id = (SELECT lote FROM placas WHERE codigo = ?3 AND estado != 'sin_activar')`,
+    ).bind(ahora, idUsuario, codigo),
   ]);
   return (placa?.meta.changes ?? 0) > 0;
 }

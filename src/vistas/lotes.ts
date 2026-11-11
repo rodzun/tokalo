@@ -13,8 +13,17 @@ export interface LoteEnLista {
   nombre_modelo: string;
   cantidad: number;
   creado_en: string;
+  /** "generado" o "impreso". */
+  estado: string;
   /** Placas del lote que ya fueron activadas alguna vez. */
   usadas: number;
+}
+
+/** Etiqueta de color con el estado de impresión del lote. */
+function etiquetaDeLote(estado: string): string {
+  return estado === "impreso"
+    ? '<span class="estado activa">Impreso</span>'
+    : '<span class="estado">Generado</span>';
 }
 
 export function vistaLotes(
@@ -28,14 +37,15 @@ export function vistaLotes(
 
   const filas = lotes
     .map((l) => {
-      // Solo se puede eliminar un lote si ninguna de sus placas fue activada.
+      // Solo se puede eliminar un lote que sigue en "Generado".
       const eliminar =
-        l.usadas === 0
+        l.estado === "generado"
           ? `<a class="peligro" href="/admin/lotes/${l.id}/eliminar">Eliminar</a>`
           : "";
       return `<div class="fila">
 <strong>Lote ${l.id} · ${escapar(l.modelo)} · ${escapar(l.nombre_modelo)}</strong>
 <span>${l.cantidad} placas · ${l.usadas} activadas · ${escapar(aHoraPeru(l.creado_en))}</span>
+<span>${etiquetaDeLote(l.estado)}</span>
 <a href="/admin/lotes/${l.id}">Códigos y QR</a><a href="/admin/lotes/${l.id}.csv">Descargar CSV</a>${eliminar}
 </div>`;
     })
@@ -69,8 +79,24 @@ const NOMBRE_ESTADO: Record<string, string> = {
   desactivada: "Desactivada",
 };
 
-/** Lista de códigos de un lote, cada uno con su QR para ver o descargar. */
-export function vistaCodigosDeLote(numero: number, modelo: string, placas: readonly PlacaDeLote[]): string {
+/** Datos de un lote para su pantalla, con el estado de impresión. */
+export interface LoteConEstado {
+  id: number;
+  modelo: string;
+  nombre_modelo: string;
+  estado: string;
+  /** Cuándo cambió el estado por última vez (UTC), o null si nunca cambió. */
+  estado_cambiado_en: string | null;
+  /** Nombre de quien lo cambió. */
+  estado_cambiado_por: string | null;
+}
+
+/** Pantalla de un lote: estado de impresión y lista de códigos con su QR. */
+export function vistaCodigosDeLote(
+  lote: LoteConEstado,
+  placas: readonly PlacaDeLote[],
+  aviso?: { texto: string; esError: boolean },
+): string {
   const filas = placas
     .map(
       (p) => `<div class="fila">
@@ -81,11 +107,27 @@ export function vistaCodigosDeLote(numero: number, modelo: string, placas: reado
     )
     .join("\n");
 
+  const cambio =
+    lote.estado_cambiado_en === null
+      ? ""
+      : ` · ${escapar(aHoraPeru(lote.estado_cambiado_en))} por ${escapar(lote.estado_cambiado_por ?? "—")}`;
+  // El estado se cambia a mano con un botón (es un formulario: cambia datos).
+  const boton =
+    lote.estado === "impreso"
+      ? `<form method="post" action="/admin/lotes/${lote.id}/generado"><button class="secundario">Volver a Generado</button></form>`
+      : `<form method="post" action="/admin/lotes/${lote.id}/impreso"><button>Marcar como impreso</button></form>`;
+
   return paginaAdmin(
-    `Lote ${numero}`,
-    `<h2>Lote ${numero}</h2>
-<p>${escapar(modelo)} · ${placas.length} placas</p>
-<p><a href="/admin/lotes/${numero}.csv">Descargar CSV</a> · <a href="/admin/lotes">Volver a lotes</a></p>
+    `Lote ${lote.id}`,
+    `<h2>Lote ${lote.id}</h2>
+${mensaje(aviso?.texto, aviso?.esError)}
+<p>${escapar(lote.modelo)} · ${escapar(lote.nombre_modelo)} · ${placas.length} placas</p>
+<div class="fila">
+<span class="rotulo">Estado de impresión</span>
+<span>${etiquetaDeLote(lote.estado)}${cambio}</span>
+${boton}
+</div>
+<p><a href="/admin/lotes/${lote.id}.csv">Descargar CSV</a> · <a href="/admin/lotes">Volver a lotes</a></p>
 ${filas}`,
   );
 }

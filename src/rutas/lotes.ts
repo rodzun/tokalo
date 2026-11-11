@@ -1,23 +1,26 @@
 // Rutas de lotes (todas exigen sesión; eso lo comprueba rutas/admin.ts).
 import { normalizarCodigo } from "../lib/codigos";
-import { csvDeLote, crearLote, eliminarLote, MAX_POR_LOTE } from "../lib/lotes";
+import { csvDeLote, crearLote, desmarcarImpreso, eliminarLote, marcarImpreso, MAX_POR_LOTE } from "../lib/lotes";
 import { enteroEntre, listarModelos } from "../lib/modelos";
 import { qrSvg, urlParaQr } from "../lib/qr";
 import { html, redirigirTrasEnvio } from "../lib/respuestas";
 import { vistaAviso, vistaConfirmar } from "../vistas/admin";
-import { type LoteEnLista, type PlacaDeLote, vistaCodigosDeLote, vistaLotes } from "../vistas/lotes";
+import { type LoteConEstado, type LoteEnLista, type PlacaDeLote, vistaCodigosDeLote, vistaLotes } from "../vistas/lotes";
 import { leerFormulario, type PeticionAdmin } from "./tipos";
 
 // Mensajes que se muestran tras una acción, según ?aviso=... en la URL.
 const AVISOS: Record<string, { texto: string; esError: boolean }> = {
   creado: { texto: "Lote creado.", esError: false },
   eliminado: { texto: "Lote eliminado.", esError: false },
-  "no-eliminado": { texto: "No se eliminó: el lote no existe o tiene placas activadas.", esError: true },
+  "no-eliminado": { texto: "No se eliminó: el lote no existe o ya está marcado como impreso.", esError: true },
+  impreso: { texto: "Lote marcado como impreso.", esError: false },
+  generado: { texto: "El lote volvió a Generado.", esError: false },
+  "no-generado": { texto: "No se puede volver a Generado: el lote tiene placas activadas o con escaneos.", esError: true },
 };
 
 async function paginaLotes(env: Env, aviso?: { texto: string; esError: boolean }, estado = 200): Promise<Response> {
   const { results } = await env.DB.prepare(
-    `SELECT l.id, l.modelo, m.nombre AS nombre_modelo, l.cantidad, l.creado_en,
+    `SELECT l.id, l.modelo, m.nombre AS nombre_modelo, l.cantidad, l.creado_en, l.estado,
             (SELECT COUNT(*) FROM placas p WHERE p.lote = l.id AND p.estado != 'sin_activar') AS usadas
      FROM lotes l JOIN modelos m ON m.id = l.modelo
      ORDER BY l.id DESC LIMIT 200`,
@@ -72,15 +75,32 @@ export async function rutasLotes(p: PeticionAdmin): Promise<Response | null> {
   if (detalle !== null && metodo === "GET") {
     const numero = Number(detalle[1]);
     const lote = await env.DB.prepare(
-      "SELECT l.modelo, m.nombre FROM lotes l JOIN modelos m ON m.id = l.modelo WHERE l.id = ?",
+      `SELECT l.id, l.modelo, m.nombre AS nombre_modelo, l.estado, l.estado_cambiado_en,
+              u.nombre AS estado_cambiado_por
+       FROM lotes l JOIN modelos m ON m.id = l.modelo
+       LEFT JOIN usuarios u ON u.id = l.estado_cambiado_por
+       WHERE l.id = ?`,
     )
       .bind(numero)
-      .first<{ modelo: string; nombre: string }>();
+      .first<LoteConEstado>();
     if (lote === null) return html(vistaAviso("Lote no encontrado", "Ese lote no existe."), "no-store", 404);
     const { results } = await env.DB.prepare("SELECT codigo, estado FROM placas WHERE lote = ? ORDER BY codigo")
       .bind(numero)
       .all<PlacaDeLote>();
-    return html(vistaCodigosDeLote(numero, `${lote.modelo} · ${lote.nombre}`, results));
+    return html(vistaCodigosDeLote(lote, results, AVISOS[p.url.searchParams.get("aviso") ?? ""]));
+  }
+
+  // POST /admin/lotes/12/impreso : marcar como impreso.
+  // POST /admin/lotes/12/generado : volver a Generado (si ninguna placa está en uso).
+  const estado = /^\/admin\/lotes\/(\d{1,9})\/(impreso|generado)$/.exec(ruta);
+  if (estado !== null && metodo === "POST") {
+    const numero = Number(estado[1]);
+    if (estado[2] === "impreso") {
+      await marcarImpreso(env.DB, numero, p.usuario.id);
+      return redirigirTrasEnvio(`/admin/lotes/${numero}?aviso=impreso`);
+    }
+    const hecho = await desmarcarImpreso(env.DB, numero, p.usuario.id);
+    return redirigirTrasEnvio(`/admin/lotes/${numero}?aviso=${hecho ? "generado" : "no-generado"}`);
   }
 
   // GET /admin/placas/XK7P2M/qr.svg : el QR de una placa.
@@ -119,7 +139,7 @@ export async function rutasLotes(p: PeticionAdmin): Promise<Response | null> {
       return html(
         vistaConfirmar(
           `Eliminar lote ${numero}`,
-          `Se borrarán el lote y sus ${cantidad} placas sin activar. Si esos códigos ya se imprimieron o se grabaron en chips, dejarán de funcionar. No se puede deshacer.`,
+          `Se borrarán el lote y sus ${cantidad} placas. Solo se puede eliminar un lote en estado Generado. No se puede deshacer.`,
           `/admin/lotes/${numero}/eliminar`,
           "/admin/lotes",
         ),
