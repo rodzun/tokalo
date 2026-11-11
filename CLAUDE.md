@@ -67,6 +67,19 @@ Links de Maps compartidos desde iPhone (maps.app.goo.gl/...?g_st=ic): el primer 
   siempre desplegado, no en local.
 - Un QR por solicitud (`/admin/placas/CODIGO/qr.svg`); no hay descarga masiva.
 
+## Conversión de links de Maps (etapa 9)
+
+- `src/lib/maps.ts`. Orden: link que ya es de reseña -> par `0xAAAA:0xBBBB` (en `ftid=` o
+  `!1s`) -> `cid=` (link oficial g.page) -> "no se pudo" (se pide a mano).
+- Solo sigue redirecciones de links cortos de Google, a mano, máximo 3 saltos, solo https
+  y solo hacia dominios de Google.
+- Página `/admin/convertir` para probar un link; el formulario de activación la reutiliza.
+- Verificado contra Google real desde local y desde Cloudflare con los tres links de
+  iPhone. Links compartidos desde Android: PENDIENTE (el dueño no tenía uno a mano).
+- CPU medido en desarrollo: prom. 2,1 ms (máx. 7).
+- Destino elegido: link de reseña directo (`writereview?placeid=`). Pendiente la prueba
+  del dueño en teléfonos con las placas A/B/C de desarrollo.
+
 ## Admin: presentación de datos
 
 - En la base las fechas van en UTC; en el admin se muestran en hora de Perú (UTC-5).
