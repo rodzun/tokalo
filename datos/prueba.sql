@@ -15,11 +15,12 @@ INSERT INTO placas (codigo, modelo, lote, estado, creada_en) VALUES
   ('SFXPXP', 'D', 1, 'sin_activar', '2026-11-11T00:00:00Z'),
   ('7TTGV8', 'D', 1, 'sin_activar', '2026-11-11T00:00:00Z');
 
--- Tres placas activas.
+-- Tres placas activas, las tres del MISMO negocio pero con un tipo de link
+-- distinto, para comparar en el celular cuál abre mejor la reseña.
 INSERT INTO placas (codigo, modelo, lote, estado, destino, negocio, responsable, telefono, activada_por, activada_en, creada_en) VALUES
-  ('9M8CQ2', 'D', 1, 'activa', 'https://search.google.com/local/writereview?placeid=ChIJd47f2fnXbZERrQZbyDhq2y0', 'Negocio de prueba 1', 'Responsable 1', '900000001', 1, '2026-11-11T01:00:00Z', '2026-11-11T00:00:00Z'),
-  ('PQJFT7', 'D', 1, 'activa', 'https://search.google.com/local/writereview?placeid=ChIJxYp2YMnVbZERVR0Z22bHb4s', 'Negocio de prueba 2', 'Responsable 2', '900000002', 1, '2026-11-11T01:00:00Z', '2026-11-11T00:00:00Z'),
-  ('3SDBNK', 'D', 1, 'activa', 'https://search.google.com/local/writereview?placeid=ChIJPfMF1jx_bpER6XQtAxa042I', 'Negocio de prueba 3', 'Responsable 3', '900000003', 1, '2026-11-11T01:00:00Z', '2026-11-11T00:00:00Z');
+  ('9M8CQ2', 'D', 1, 'activa', 'https://search.google.com/local/writereview?placeid=ChIJxYp2YMnVbZERVR0Z22bHb4s', 'Prueba A: link de reseña directo', 'Responsable 1', '900000001', 1, '2026-11-11T01:00:00Z', '2026-11-11T00:00:00Z'),
+  ('PQJFT7', 'D', 1, 'activa', 'https://g.page/r/CVUdGdtmx2-LEAI/review', 'Prueba B: link oficial g.page', 'Responsable 2', '900000002', 1, '2026-11-11T01:00:00Z', '2026-11-11T00:00:00Z'),
+  ('3SDBNK', 'D', 1, 'activa', 'https://maps.app.goo.gl/RJbtcYKLeMyt1ZmC7', 'Prueba C: ficha del negocio en Maps', 'Responsable 3', '900000003', 1, '2026-11-11T01:00:00Z', '2026-11-11T00:00:00Z');
 
 -- Una placa desactivada: conserva sus datos.
 INSERT INTO placas (codigo, modelo, lote, estado, destino, negocio, responsable, telefono, activada_por, activada_en, creada_en) VALUES

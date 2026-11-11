@@ -35,6 +35,11 @@ Hash de contraseña, PBKDF2-SHA256 con WebCrypto (CPU promedio, 8 solicitudes ca
 10 000 iteraciones 1,9 ms · 25 000 3,5 ms · 50 000 8,8 ms · 100 000 16 ms.
 Workers rechaza más de 100 000 iteraciones.
 
+Link oficial de reseña de Google: `https://g.page/r/TOKEN/review`, con TOKEN = base64url
+sin relleno de `0x09 + BBBB (uint64 little-endian) + 0x10 0x02`. Redirige a
+`search.google.com/local/writereview?placeid=...` con el mismo Place ID que calculamos:
+confirma el método y que el link oficial también abre la reseña en el navegador.
+
 Links de Maps compartidos desde iPhone (maps.app.goo.gl/...?g_st=ic): el primer salto
 302 trae `ftid=0xAAAA:0xBBBB`, también cuando la petición sale desde Cloudflare.
 
@@ -109,8 +114,22 @@ Cada etapa se despliega primero a desarrollo; a producción solo con aviso previ
 
 - Pixel o etiquetas de publicidad.
 
-## Entorno
+## Entornos de Cloudflare
+
+| | Desarrollo | Producción |
+|---|---|---|
+| Worker | `tokalo-dev` | `tokalo` |
+| Dirección | tokalo-dev.tokaloperu.workers.dev | tokaloperu.com (www redirige a la raíz) |
+| Base D1 | `tokalo-dev` (con datos de prueba) | `tokalo` (sin datos de prueba) |
+| Desplegar | `npm run desplegar` | `npm run desplegar:produccion` (avisar antes) |
+| Migrar | `npm run migrar:dev` | `npm run migrar:produccion` |
+
+"Always Use HTTPS" está activado en la zona. El Worker no debe redirigir http a https.
+
+## Entorno local
 
 - Python local: virtualenv `nfc` de virtualenvwrapper (`~/.virtualenvs/nfc`). No crear otros.
 - `wrangler` está en `node_modules` del proyecto: usar `npx wrangler`.
+- Esta máquina (WSL) no tiene IPv6 y su DNS local a veces falla: probar con `curl -4`.
+- La base de los tests no se reinicia entre tests: usar `vaciarBase()` de `test/ayudas.ts`.
 - `wrangler tail` se desconecta al redesplegar: reabrirlo tras cada despliegue.
