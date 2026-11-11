@@ -20,7 +20,15 @@ const RUTA_ESCANEO = /^\/([nq])\/([^/]+)\/?$/i;
 
 /** Rutas del sitio. */
 export const enrutar: Enrutador = async (solicitud, env) => {
-  const ruta = new URL(solicitud.url).pathname;
+  const url = new URL(solicitud.url);
+  const ruta = url.pathname;
+
+  // www.tokaloperu.com -> tokaloperu.com, para que haya una sola dirección.
+  // 301 es redirección permanente: el navegador la recuerda.
+  if (url.hostname.startsWith("www.")) {
+    url.hostname = url.hostname.slice("www.".length);
+    return new Response(null, { status: 301, headers: { Location: url.toString() } });
+  }
 
   // Todas las rutas públicas son de solo lectura.
   // (HEAD es un GET sin cuerpo; lo usan algunos navegadores y bots.)

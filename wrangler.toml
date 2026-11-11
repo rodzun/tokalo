@@ -1,7 +1,8 @@
 # Configuración del Worker.
 # El entorno por defecto es DESARROLLO (tokalo-dev en workers.dev).
-# Producción (tokaloperu.com) se añade en la etapa 4 como [env.produccion],
-# así un "wrangler deploy" a secas nunca toca el dominio real.
+# Producción (tokaloperu.com) está al final, en [env.produccion], y solo se
+# despliega pidiéndolo a propósito:  npm run desplegar:produccion
+# Así un "wrangler deploy" a secas nunca toca el dominio real.
 
 name = "tokalo-dev"
 main = "src/index.ts"
@@ -27,4 +28,34 @@ enabled = false
 binding = "DB"
 database_name = "tokalo-dev"
 database_id = "423ca62c-5407-4431-bb2c-953e4fe7a929"
+migrations_dir = "migrations"
+
+
+# ───────────────────────── PRODUCCIÓN ─────────────────────────
+# Worker "tokalo" en tokaloperu.com. Los entornos no heredan variables ni
+# bases de datos, por eso se repiten aquí con sus valores de producción.
+[env.produccion]
+name = "tokalo"
+workers_dev = false      # sin dirección *.workers.dev: solo el dominio propio
+preview_urls = false
+# Cloudflare crea solo los registros DNS y el certificado de cada dominio.
+routes = [
+  { pattern = "tokaloperu.com", custom_domain = true },
+  { pattern = "www.tokaloperu.com", custom_domain = true },   # redirige a la raíz
+]
+
+[env.produccion.vars]
+WHATSAPP = "51913629134"
+
+[env.produccion.observability.logs]
+enabled = true
+invocation_logs = true
+
+[env.produccion.observability.traces]
+enabled = false
+
+[[env.produccion.d1_databases]]
+binding = "DB"
+database_name = "tokalo"
+database_id = "b08ab1ce-7093-45b0-8e64-4d13e1f2645c"
 migrations_dir = "migrations"

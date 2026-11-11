@@ -7,11 +7,12 @@ const BASE = "https://tokaloperu.com";
 
 /**
  * Llama al Worker completo, igual que lo haría Cloudflare.
+ * `ruta` puede ser una ruta ("/n/XXXXXX") o una URL completa.
  * `entorno` permite pasar un `env` alterado (por ejemplo, con la base rota).
  */
 export async function pedir(ruta: string, opciones?: RequestInit, entorno: Env = env): Promise<Response> {
   const ctx = createExecutionContext();
-  const respuesta = await worker.fetch(new Request(BASE + ruta, opciones), entorno, ctx);
+  const respuesta = await worker.fetch(new Request(ruta.startsWith("/") ? BASE + ruta : ruta, opciones), entorno, ctx);
   await waitOnExecutionContext(ctx);
   return respuesta;
 }

@@ -131,6 +131,14 @@ describe("archivos que piden los navegadores y los bots", () => {
   });
 });
 
+describe("dominio con www", () => {
+  it("redirige de forma permanente a la raíz, conservando la ruta", async () => {
+    const r = await pedir("https://www.tokaloperu.com/n/9M8CQ2");
+    expect(r.status).toBe(301);
+    expect(r.headers.get("Location")).toBe("https://tokaloperu.com/n/9M8CQ2");
+  });
+});
+
 describe("normalizarCodigo", () => {
   it("pasa a mayúsculas y valida el alfabeto de 28", () => {
     expect(normalizarCodigo("9m8cq2")).toBe("9M8CQ2");
