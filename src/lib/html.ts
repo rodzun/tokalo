@@ -60,6 +60,12 @@ nav a{color:#111827;font-weight:600;text-decoration:none}
 .fila span{display:block;color:#4b5563;font-size:.9375rem}
 .fila a{display:inline-block;margin:.5rem 1rem 0 0;font-weight:600}
 .fila a.peligro{color:#b91c1c}
+.fila p{margin:0 0 .5rem}
+.fila .rotulo{color:#6b7280;font-size:.8125rem;text-transform:uppercase;letter-spacing:.04em}
+.fila .valor{display:block;color:#111827;font-size:1rem;overflow-wrap:anywhere}
+.estado{display:inline-block;padding:.15rem .6rem;border-radius:1rem;font-size:.875rem;font-weight:600;background:#e5e7eb;color:#111827}
+.estado.activa{background:#dcfce7;color:#166534}
+.estado.desactivada{background:#fee2e2;color:#991b1b}
 .dos{display:flex;gap:.75rem}.dos>div{flex:1}
 .dato{font-family:ui-monospace,monospace;font-size:1.5rem;letter-spacing:.1em;color:#111827}
 `;

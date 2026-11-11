@@ -3,6 +3,7 @@ import { cookieBorrada, leerSesion, traeCookie } from "../lib/auth";
 import { normalizarCodigo } from "../lib/codigos";
 import { type Canal, debeContarse, registrarEscaneo } from "../lib/escaneos";
 import { ICONO_SVG } from "../lib/html";
+import { esHttps } from "../lib/maps";
 import { html, redirigir } from "../lib/respuestas";
 import { landing } from "../vistas/landing";
 
@@ -10,16 +11,6 @@ import { landing } from "../vistas/landing";
 interface PlacaParaRedirigir {
   estado: string;
   destino: string | null;
-}
-
-/** True si el texto es una URL que empieza por https://. */
-export function esHttps(texto: string | null): texto is string {
-  if (texto === null) return false;
-  try {
-    return new URL(texto).protocol === "https:";
-  } catch {
-    return false; // no es una URL válida
-  }
 }
 
 /**

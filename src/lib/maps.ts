@@ -21,6 +21,16 @@ export type Buscador = (url: string, opciones: RequestInit) => Promise<Response>
 
 const MAX_SALTOS = 3;
 
+/** True si el texto es una URL válida que empieza por https://. */
+export function esHttps(texto: string | null): texto is string {
+  if (texto === null) return false;
+  try {
+    return new URL(texto).protocol === "https:";
+  } catch {
+    return false; // no es una URL válida
+  }
+}
+
 // ───────────────────────── Qué dominios son de Google ─────────────────────────
 
 /** True si el dominio es de Google: google.com, maps.google.com.pe, goo.gl, g.page... */

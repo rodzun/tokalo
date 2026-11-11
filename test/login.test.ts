@@ -209,7 +209,7 @@ describe("escanear una placa: las cuatro combinaciones", () => {
     expect(pagina.status).toBe(200);
     const cuerpo = await pagina.text();
     expect(cuerpo).toContain("SFXPXP");
-    expect(cuerpo).toContain("Sin activar");
+    expect(cuerpo).toContain("Activar placa");
   });
 
   it("con sesión + placa activa: va a la ficha, no al destino, y no cuenta", async () => {
@@ -219,7 +219,7 @@ describe("escanear una placa: las cuatro combinaciones", () => {
     expect(r.headers.get("Location")).toBe("/admin/placas/9M8CQ2");
 
     const pagina = await pedir("/admin/placas/9M8CQ2", { headers: cabeceras });
-    expect(await pagina.text()).toContain("Activa");
+    expect(await pagina.text()).toContain('<span class="estado activa">Activa</span>');
     expect(await contarEscaneos()).toBe(0);
   });
 

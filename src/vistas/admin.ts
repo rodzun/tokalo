@@ -41,23 +41,8 @@ export function vistaInicio(nombre: string): string {
   return paginaAdmin(
     "Admin",
     `<h2>Hola, ${escapar(nombre)}</h2>
-<p>Sesión iniciada. Acerca el celular a una placa para activarla o ver su ficha.</p>
+<p>Acerca el celular a una placa para activarla o ver su ficha.</p>
 ${BOTON_SALIR}`,
-  );
-}
-
-/** Página provisional de una placa. El formulario y la ficha llegan después. */
-export function vistaPlacaProvisional(codigo: string, estado: string): string {
-  const textos: Record<string, string> = {
-    sin_activar: "Sin activar. Aquí irá el formulario de activación.",
-    activa: "Activa. Aquí irá la ficha de la placa.",
-    desactivada: "Desactivada. Aquí irá la ficha, con el botón para reactivarla.",
-  };
-  return paginaAdmin(
-    `Placa ${codigo}`,
-    `<h2>Placa</h2>
-<p class="dato">${escapar(codigo)}</p>
-<p>${escapar(textos[estado] ?? estado)}</p>`,
   );
 }
 

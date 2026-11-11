@@ -7,12 +7,12 @@ import {
   leerSesion,
   traeCookie,
 } from "../lib/auth";
-import { normalizarCodigo } from "../lib/codigos";
 import { html, redirigirTrasEnvio } from "../lib/respuestas";
-import { vistaAviso, vistaInicio, vistaLogin, vistaPlacaProvisional } from "../vistas/admin";
+import { vistaInicio, vistaLogin } from "../vistas/admin";
 import { rutasConvertir } from "./convertir";
 import { rutasLotes } from "./lotes";
 import { rutasModelos } from "./modelos";
+import { rutasPlacas } from "./placas";
 import type { PeticionAdmin } from "./tipos";
 
 /**
@@ -79,30 +79,17 @@ export async function enrutarAdmin(solicitud: Request, env: Env, url: URL): Prom
     return redirigirTrasEnvio("/admin/login", traeCookie(solicitud) ? cookieBorrada() : undefined);
   }
 
-  // Lotes, modelos y el conversor tienen sus propios archivos. Cada uno devuelve null si
-  // la ruta no es suya, y entonces se prueba con el siguiente.
+  // Lotes, placas, modelos y el conversor tienen sus propios archivos.
+  // Cada uno devuelve null si la ruta no es suya, y se prueba con el siguiente.
   const peticion: PeticionAdmin = { solicitud, env, url, ruta, metodo, usuario };
   const respuesta =
-    (await rutasLotes(peticion)) ?? (await rutasModelos(peticion)) ?? (await rutasConvertir(peticion));
+    (await rutasLotes(peticion)) ??
+    (await rutasPlacas(peticion)) ??
+    (await rutasModelos(peticion)) ??
+    (await rutasConvertir(peticion));
   if (respuesta !== null) return respuesta;
 
-  if (metodo === "GET") {
-    if (ruta === "/admin") return html(vistaInicio(usuario.nombre));
-
-    // /admin/placas/CODIGO : a donde llega quien escanea una placa con sesión.
-    const coincide = /^\/admin\/placas\/([^/]+)$/.exec(ruta);
-    if (coincide !== null) {
-      const codigo = normalizarCodigo(coincide[1] ?? "");
-      const estado =
-        codigo === null
-          ? null
-          : await env.DB.prepare("SELECT estado FROM placas WHERE codigo = ?").bind(codigo).first<string>("estado");
-      if (codigo === null || estado === null) {
-        return html(vistaAviso("Placa no encontrada", "Ese código no existe."), "no-store", 404);
-      }
-      return html(vistaPlacaProvisional(codigo, estado));
-    }
-  }
+  if (metodo === "GET" && ruta === "/admin") return html(vistaInicio(usuario.nombre));
 
   // Ruta del admin que no existe: al inicio.
   return redirigirTrasEnvio("/admin");
