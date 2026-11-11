@@ -2,6 +2,7 @@
 //
 // Qué se guarda: placa, canal, fecha UTC, país y sistema operativo.
 // Qué NO se guarda: IP ni user-agent (del user-agent solo sale el sistema).
+import { ahoraUtc } from "./fechas";
 
 /** Canal por el que llegó la persona: "n" = chip NFC, "q" = código QR. */
 export type Canal = "n" | "q";
@@ -51,18 +52,13 @@ function esPrecarga(solicitud: Request): boolean {
 
 /**
  * Decide si una solicitud cuenta como escaneo real.
- * No cuentan: quien tiene sesión iniciada, los HEAD, las precargas y los bots.
+ * No cuentan los HEAD, las precargas ni los bots. (Quien tiene sesión
+ * iniciada tampoco cuenta: eso se resuelve antes de llegar aquí.)
  */
-export function debeContarse(solicitud: Request, conSesion: boolean): boolean {
-  if (conSesion) return false;
+export function debeContarse(solicitud: Request): boolean {
   if (solicitud.method !== "GET") return false;
   if (esPrecarga(solicitud)) return false;
   return !esBot(solicitud.headers.get("User-Agent"));
-}
-
-/** Fecha y hora actual en UTC, con precisión de segundos: 2026-11-11T07:30:00Z */
-export function ahoraUtc(): string {
-  return new Date().toISOString().slice(0, 19) + "Z";
 }
 
 /** País según Cloudflare (dos letras, como "PE"), o null si no lo sabe. */
