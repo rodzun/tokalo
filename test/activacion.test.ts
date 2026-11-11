@@ -101,6 +101,8 @@ describe("revisar el link", () => {
     expect(cuerpo).toContain(">Probar</a>");
     expect(cuerpo).toContain(`formaction="/admin/placas/${CODIGO}/activar"`);
     expect(cuerpo).toContain('value="Café Qosqo"'); // conserva lo escrito
+    // El nombre que trae el link (aquí "Negocio"), para comparar a simple vista.
+    expect(cuerpo).toContain('<span class="rotulo">Negocio según el link</span><span class="valor">Negocio</span>');
     expect((await placa())?.estado).toBe("sin_activar");
   });
 
@@ -115,7 +117,9 @@ describe("revisar el link", () => {
 
   it("un link manual https se acepta tal cual; uno http, no", async () => {
     const bien = await enviar(`/admin/placas/${CODIGO}/revisar`, { ...NEGOCIO, link: "", manual: TRIPADVISOR }, idUsuario);
-    expect(await bien.text()).toContain(`href="${TRIPADVISOR}" target="_blank"`);
+    const cuerpoBien = await bien.text();
+    expect(cuerpoBien).toContain(`href="${TRIPADVISOR}" target="_blank"`);
+    expect(cuerpoBien).not.toContain("según el link"); // un link manual no trae nombre
 
     const mal = await enviar(
       `/admin/placas/${CODIGO}/revisar`,
@@ -237,6 +241,17 @@ describe("ficha", () => {
     expect(cuerpo).toContain(`href="${DESTINO}" target="_blank"`);
     expect(cuerpo).toContain(`/admin/placas/${CODIGO}/qr.svg`);
     expect(cuerpo).not.toContain("<form"); // solo lectura
+  });
+
+  it("activar una placa marca su lote como impreso, con fecha y usuario", async () => {
+    const antes = await env.DB.prepare("SELECT estado, estado_cambiado_por FROM lotes").first();
+    expect(antes).toEqual({ estado: "generado", estado_cambiado_por: null });
+
+    await revisarYActivar({ ...NEGOCIO, link: LINK_MAPS });
+
+    const despues = await env.DB.prepare("SELECT estado, estado_cambiado_por, estado_cambiado_en FROM lotes").first<Record<string, unknown>>();
+    expect(despues).toMatchObject({ estado: "impreso", estado_cambiado_por: idUsuario });
+    expect(despues?.["estado_cambiado_en"]).toMatch(/^\d{4}-\d{2}-\d{2}T/);
   });
 
   it("escapa los datos del negocio (no deja inyectar HTML)", async () => {

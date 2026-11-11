@@ -76,7 +76,7 @@ async function revisar(campos: Record<string, string>, plataforma: string): Prom
   }
 
   const conversion = await convertirLinkDeMaps(link);
-  if (conversion.ok) return { campos, destino: conversion.destino };
+  if (conversion.ok) return { campos, destino: conversion.destino, nombre: conversion.nombre };
 
   // No se pudo convertir: se pide el link de reseña a mano. Si lo pegado ya
   // era un link https, se propone tal cual para no escribirlo de nuevo.

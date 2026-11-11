@@ -31,6 +31,8 @@ export interface EstadoDelFormulario {
   error?: string;
   /** Destino ya revisado: aparece con "Probar" y el botón de guardar. */
   destino?: string;
+  /** Nombre del negocio según el link de Maps, si lo trae. */
+  nombre?: string;
   /** Aviso que no impide guardar (por ejemplo, link de otra plataforma). */
   advertencia?: string;
   /** Mostrar el campo para pegar el link de reseña a mano (solo Google). */
@@ -74,7 +76,8 @@ function bloqueRevisado(e: EstadoDelFormulario, accionGuardar: string, textoBoto
   if (e.destino === undefined) return "";
   return `<p class="ok">Destino listo. Pruébalo antes de guardar.</p>
 ${e.advertencia === undefined ? "" : `<p class="aviso">${escapar(e.advertencia)}</p>`}
-<div class="fila"><span class="rotulo">Destino</span><span class="valor">${escapar(e.destino)}</span>
+<div class="fila">${e.nombre === undefined ? "" : `<p><span class="rotulo">Negocio según el link</span><span class="valor">${escapar(e.nombre)}</span></p>`}
+<span class="rotulo">Destino</span><span class="valor">${escapar(e.destino)}</span>
 <a href="${escapar(e.destino)}" target="_blank" rel="noopener noreferrer">Probar</a></div>
 <input type="hidden" name="destino" value="${escapar(e.destino)}">
 <input type="hidden" name="revisado" value="${escapar(e.campos["manual"] || e.campos["link"] || "")}">

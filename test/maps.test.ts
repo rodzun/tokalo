@@ -60,12 +60,12 @@ describe("cálculo del Place ID", () => {
 
 describe("links cortos compartidos desde el celular", () => {
   it.each([
-    ["https://maps.app.goo.gl/RJbtcYKLeMyt1ZmC7?g_st=ic", "ChIJxYp2YMnVbZERVR0Z22bHb4s"],
-    ["https://maps.app.goo.gl/MGk8Lf7nyjZouva6A?g_st=ic", "ChIJPfMF1jx_bpER6XQtAxa042I"],
-    ["https://maps.app.goo.gl/3UHa7c6Afyg8s2iB6?g_st=ic", "ChIJy3uWwHPWbZERICgazBw9xPo"],
-  ])("%s", async (corto, placeId) => {
+    ["https://maps.app.goo.gl/RJbtcYKLeMyt1ZmC7?g_st=ic", "ChIJxYp2YMnVbZERVR0Z22bHb4s", "Krusty Krab Cusco, Jr, Los Lirios L-13, Cusco 08002"],
+    ["https://maps.app.goo.gl/MGk8Lf7nyjZouva6A?g_st=ic", "ChIJPfMF1jx_bpER6XQtAxa042I", "Hostal Ukumari Andino, Avenida Ausangate, Pasaje San Sebastian n° 788, 08000"],
+    ["https://maps.app.goo.gl/3UHa7c6Afyg8s2iB6?g_st=ic", "ChIJy3uWwHPWbZERICgazBw9xPo", "Morena Peruvian Kitchen, plaza de armas, Portal Harinas 181, Cusco 08001"],
+  ])("%s", async (corto, placeId, nombre) => {
     const r = await convertirLinkDeMaps(corto, googleFalso(GRABADAS));
-    expect(r).toEqual({ ok: true, destino: RESENA + placeId, origen: "par" });
+    expect(r).toEqual({ ok: true, destino: RESENA + placeId, origen: "par", nombre });
     expect(pedidas).toEqual([corto]); // un solo salto
   });
 
@@ -121,7 +121,7 @@ describe("links largos (no hace falta pedir nada a Google)", () => {
       "https://www.google.com/maps/place/Un+Negocio/@-13.5167,-71.9781,17z/data=!3m1!4b1!4m6!3m5!1s0x916dd7f9d9df8e77:0x2ddb6a38c85b06ad!8m2!3d-13.5167!4d-71.9755!16s%2Fg%2F11c5s8xyz?entry=ttu",
       sinRed,
     );
-    expect(r).toEqual({ ok: true, destino: RESENA + "ChIJd47f2fnXbZERrQZbyDhq2y0", origen: "par" });
+    expect(r).toEqual({ ok: true, destino: RESENA + "ChIJd47f2fnXbZERrQZbyDhq2y0", origen: "par", nombre: "Un Negocio" });
   });
 
   it("con el par codificado (%3A en lugar de dos puntos)", async () => {
@@ -156,6 +156,28 @@ describe("links largos (no hace falta pedir nada a Google)", () => {
   it("un link de Maps sin negocio (una búsqueda) no se puede convertir", async () => {
     const r = await convertirLinkDeMaps("https://www.google.com/maps/search/restaurantes+cusco", sinRed);
     expect(r).toEqual({ ok: false, motivo: "No se encontró el negocio en ese link." });
+  });
+});
+
+describe("nombre del negocio según el link", () => {
+  it("no hay nombre cuando el link no lo trae", async () => {
+    for (const link of [
+      "https://maps.google.com/?cid=10047468538263313749",
+      "https://www.google.com/maps/place//data=!4m2!3m1!1s0x916dd7f9d9df8e77:0x2ddb6a38c85b06ad",
+      "https://www.google.com/maps?q=-13.5167,-71.9781&ftid=0x916dd7f9d9df8e77:0x2ddb6a38c85b06ad",
+      "https://search.google.com/local/writereview?placeid=ChIJd47f2fnXbZERrQZbyDhq2y0",
+    ]) {
+      const r = await convertirLinkDeMaps(link, sinRed);
+      expect(r.ok && r.nombre, link).toBeUndefined();
+    }
+  });
+
+  it("decodifica tildes y símbolos del nombre en links de computadora", async () => {
+    const r = await convertirLinkDeMaps(
+      "https://www.google.com/maps/place/Caf%C3%A9+Qosqo+%26+Bar/@-13.5,-71.9,17z/data=!4m2!3m1!1s0x916dd7f9d9df8e77:0x2ddb6a38c85b06ad",
+      sinRed,
+    );
+    expect(r).toMatchObject({ ok: true, nombre: "Café Qosqo & Bar" });
   });
 });
 
@@ -223,6 +245,7 @@ describe("página Convertir link en /admin", () => {
     expect(cuerpo).toContain("Link de reseña encontrado.");
     expect(cuerpo).toContain(`href="${RESENA}ChIJd47f2fnXbZERrQZbyDhq2y0" target="_blank"`);
     expect(cuerpo).toContain(">Probar</a>");
+    expect(cuerpo).toContain("Negocio según el link:</strong> X");
   });
 
   it("si no puede, explica el motivo y pide el link a mano", async () => {

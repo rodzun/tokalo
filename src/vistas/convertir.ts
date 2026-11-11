@@ -4,8 +4,9 @@ import type { Conversion } from "../lib/maps";
 import { mensaje, paginaAdmin } from "./admin";
 
 /** Bloque con el link de reseña obtenido y el botón para probarlo. */
-export function bloqueDestino(destino: string): string {
+export function bloqueDestino(destino: string, nombre?: string): string {
   return `<p class="ok">Link de reseña encontrado.</p>
+${nombre === undefined ? "" : `<p><strong>Negocio según el link:</strong> ${escapar(nombre)}</p>`}
 <label for="destino">Destino</label>
 <input id="destino" value="${escapar(destino)}" readonly>
 <p><a class="boton" href="${escapar(destino)}" target="_blank" rel="noopener noreferrer">Probar</a></p>
@@ -16,7 +17,7 @@ export function vistaConvertir(pegado = "", resultado?: Conversion): string {
   let bloque = "";
   if (resultado !== undefined) {
     bloque = resultado.ok
-      ? bloqueDestino(resultado.destino)
+      ? bloqueDestino(resultado.destino, resultado.nombre)
       : mensaje(`${resultado.motivo} Si el negocio te dio su link de reseña, pégalo directamente.`, true);
   }
   return paginaAdmin(

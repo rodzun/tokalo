@@ -13,7 +13,17 @@
 
 /** Resultado de la conversión. */
 export type Conversion =
-  | { ok: true; destino: string; /** de dónde salió el dato */ origen: "ya-era-resena" | "par" | "cid" }
+  | {
+      ok: true;
+      destino: string;
+      /** De dónde salió el dato. */
+      origen: "ya-era-resena" | "par" | "cid";
+      /**
+       * Nombre del negocio tal como viene escrito en el link, si lo trae.
+       * Es solo una ayuda visual: no está confirmado por Google.
+       */
+      nombre?: string;
+    }
   | { ok: false; motivo: string };
 
 /** Función para pedir una URL. Es `fetch`; los tests pasan una de mentira. */
@@ -84,6 +94,35 @@ export function linkGPageDesdeCid(cid: bigint): string {
 // ───────────────────────── Lectura de una URL ─────────────────────────
 
 const MAX_64_BITS = (1n << 64n) - 1n;
+
+/**
+ * Nombre del negocio según el link. No cuesta nada: ya viene en la URL.
+ *   links de celular:     ?q=Nombre+del+negocio,+dirección
+ *   links de computadora: /maps/place/Nombre+del+negocio/...
+ */
+export function nombreSegunElLink(url: URL): string | undefined {
+  let nombre = url.searchParams.get("q") ?? "";
+  if (nombre === "") {
+    const enRuta = /\/maps\/place\/([^/@]+)/.exec(url.pathname);
+    try {
+      // En la ruta, los espacios vienen como "+" y lo demás como %XX.
+      nombre = enRuta === null ? "" : decodeURIComponent((enRuta[1] ?? "").replaceAll("+", " "));
+    } catch {
+      nombre = "";
+    }
+  }
+  nombre = nombre.trim().slice(0, 120);
+  // "place_id:ChIJ..." o unas coordenadas no son un nombre.
+  if (nombre === "" || /^place_id:/i.test(nombre) || /^[-\d.,\s]+$/.test(nombre)) return undefined;
+  return nombre;
+}
+
+/** Añade el nombre al resultado, si la conversión salió bien y el link lo trae. */
+function conNombre(resultado: Conversion, url: URL): Conversion {
+  if (!resultado.ok) return resultado;
+  const nombre = nombreSegunElLink(url);
+  return nombre === undefined ? resultado : { ...resultado, nombre };
+}
 
 /** Busca el identificador del negocio dentro de una URL de Google. */
 function extraer(url: URL): Conversion | null {
@@ -163,8 +202,10 @@ export async function convertirLinkDeMaps(pegado: string, buscar: Buscador = fet
       return { ok: false, motivo: "El link no es de Google Maps." };
     }
 
-    const resultado = siYaEsResena(url) ?? extraer(url);
-    if (resultado !== null) return resultado;
+    const yaEsResena = siYaEsResena(url);
+    if (yaEsResena !== null) return yaEsResena;
+    const resultado = extraer(url);
+    if (resultado !== null) return conNombre(resultado, url);
 
     // Sin dato y sin ser un link corto: no hay de dónde sacarlo.
     if (!esLinkCorto(url) || salto === MAX_SALTOS) break;
