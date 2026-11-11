@@ -23,3 +23,34 @@ export function aHoraPeru(textoUtc: string): string {
   const dos = (n: number): string => String(n).padStart(2, "0");
   return `${dos(f.getUTCDate())}/${dos(f.getUTCMonth() + 1)}/${f.getUTCFullYear()} ${dos(f.getUTCHours())}:${dos(f.getUTCMinutes())}`;
 }
+
+// ───────────────────────── Días en hora de Perú ─────────────────────────
+// Los filtros de los reportes usan días de Perú ("2026-11-11"). Como la
+// base guarda UTC, cada día de Perú va de las 05:00 UTC de ese día a las
+// 05:00 UTC del siguiente.
+
+/** El día de hoy en Perú, como "AAAA-MM-DD". */
+export function hoyEnPeru(): string {
+  return new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
+/** True si el texto es un día válido con formato "AAAA-MM-DD". */
+export function esDia(texto: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(texto) && !Number.isNaN(Date.parse(`${texto}T00:00:00Z`));
+}
+
+/** Suma (o resta, con negativo) días a un día "AAAA-MM-DD". */
+export function sumarDias(dia: string, cantidad: number): string {
+  return new Date(Date.parse(`${dia}T00:00:00Z`) + cantidad * 86_400_000).toISOString().slice(0, 10);
+}
+
+/** Instante UTC en que empieza un día de Perú: medianoche de Lima = 05:00 UTC. */
+export function inicioDelDiaPeru(dia: string): string {
+  return `${dia}T05:00:00Z`;
+}
+
+/** "2026-11-11" -> "11/11/2026" */
+export function diaLegible(dia: string): string {
+  const [anio, mes, d] = dia.split("-");
+  return `${d}/${mes}/${anio}`;
+}

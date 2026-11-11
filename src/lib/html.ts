@@ -71,6 +71,12 @@ nav a{color:#111827;font-weight:600;text-decoration:none}
 a.peligro{color:#b91c1c}
 label.casilla{font-weight:400;margin:0 0 1rem}
 label.casilla input{display:inline;width:auto;margin:0 .4rem 0 0}
+.tabla{overflow-x:auto;margin:0 0 1rem}
+table{border-collapse:collapse;width:100%;font-size:.9375rem;background:#fff}
+th,td{text-align:left;padding:.5rem .6rem;border-bottom:1px solid #e5e7eb;white-space:nowrap}
+th{font-size:.8125rem;color:#6b7280;text-transform:uppercase;letter-spacing:.04em}
+td.num,th.num{text-align:right}
+tfoot td{font-weight:700;border-top:2px solid #111827}
 .dos{display:flex;gap:.75rem}.dos>div{flex:1}
 .dato{font-family:ui-monospace,monospace;font-size:1.5rem;letter-spacing:.1em;color:#111827}
 `;

@@ -1,0 +1,206 @@
+// Reportes del admin: escaneos por código y canal, y activaciones por período.
+import { diaLegible, esDia, hoyEnPeru, inicioDelDiaPeru, sumarDias } from "./fechas";
+import { aPlataforma } from "./plataformas";
+
+// ───────────────────────── Rango de fechas ─────────────────────────
+
+/** Rango de días de Perú, ambos incluidos. */
+export interface Rango {
+  desde: string; // "AAAA-MM-DD"
+  hasta: string;
+}
+
+/**
+ * Lee el rango pedido en la URL (?desde=...&hasta=...). Si falta o es
+ * inválido, usa los últimos 30 días. Si vienen al revés, los intercambia.
+ */
+export function leerRango(q: URLSearchParams): Rango {
+  const hoy = hoyEnPeru();
+  let desde = q.get("desde") ?? "";
+  let hasta = q.get("hasta") ?? "";
+  if (!esDia(hasta)) hasta = hoy;
+  if (!esDia(desde)) desde = sumarDias(hasta, -29);
+  if (desde > hasta) [desde, hasta] = [hasta, desde];
+  return { desde, hasta };
+}
+
+/** Límites del rango en UTC, para comparar con las fechas de la base: [inicio, fin). */
+function limitesUtc(r: Rango): [string, string] {
+  return [inicioDelDiaPeru(r.desde), inicioDelDiaPeru(sumarDias(r.hasta, 1))];
+}
+
+// ───────────────────────── Escaneos por código y canal ─────────────────────────
+
+export interface FilaDeEscaneos {
+  codigo: string;
+  negocio: string | null;
+  plataforma: string;
+  nfc: number;
+  qr: number;
+  total: number;
+}
+
+export interface ReporteDeEscaneos {
+  filas: FilaDeEscaneos[];
+  /** Totales de TODO el rango, aunque la tabla muestre solo las primeras filas. */
+  totales: { nfc: number; qr: number; total: number; placas: number };
+}
+
+/** Máximo de filas que devuelve un reporte. */
+export const MAX_FILAS = 500;
+
+/** Lecturas por placa en el rango, separadas por canal, de más a menos. */
+export async function reporteDeEscaneos(
+  db: D1Database,
+  rango: Rango,
+  plataforma?: string,
+): Promise<ReporteDeEscaneos> {
+  const [inicio, fin] = limitesUtc(rango);
+  const filtro = aPlataforma(plataforma) === undefined ? "" : "AND m.plataforma = ?3";
+  const valores = aPlataforma(plataforma) === undefined ? [inicio, fin] : [inicio, fin, plataforma];
+  const desde = `FROM escaneos e JOIN placas p ON p.codigo = e.codigo JOIN modelos m ON m.id = p.modelo
+                 WHERE e.fecha >= ?1 AND e.fecha < ?2 ${filtro}`;
+
+  // SUM(canal = 'n') cuenta las filas donde la condición es verdadera (vale 1).
+  const [filas, totales] = await db.batch<Record<string, unknown>>([
+    db.prepare(
+      `SELECT e.codigo, p.negocio, m.plataforma,
+              SUM(e.canal = 'n') AS nfc, SUM(e.canal = 'q') AS qr, COUNT(*) AS total
+       ${desde} GROUP BY e.codigo ORDER BY total DESC, e.codigo LIMIT ${MAX_FILAS}`,
+    ).bind(...valores),
+    db.prepare(
+      `SELECT COALESCE(SUM(e.canal = 'n'), 0) AS nfc, COALESCE(SUM(e.canal = 'q'), 0) AS qr,
+              COUNT(*) AS total, COUNT(DISTINCT e.codigo) AS placas ${desde}`,
+    ).bind(...valores),
+  ]);
+
+  const t = totales?.results[0] ?? {};
+  return {
+    filas: (filas?.results ?? []) as unknown as FilaDeEscaneos[],
+    totales: { nfc: Number(t["nfc"] ?? 0), qr: Number(t["qr"] ?? 0), total: Number(t["total"] ?? 0), placas: Number(t["placas"] ?? 0) },
+  };
+}
+
+// ───────────────────────── Activaciones ─────────────────────────
+
+export const AGRUPACIONES = ["dia", "semana", "mes", "detalle"] as const;
+export type Agrupacion = (typeof AGRUPACIONES)[number];
+
+/**
+ * Cómo se calcula el período de cada activación, en hora de Perú
+ * ('-5 hours'). Son textos fijos elegidos de esta lista: nada que venga
+ * de la URL se pega dentro del SQL.
+ *   semana: 'weekday 0' avanza al domingo de esa semana y '-6 days'
+ *           retrocede a su lunes. Las semanas van de lunes a domingo.
+ */
+const PERIODO_SQL: Record<Exclude<Agrupacion, "detalle">, string> = {
+  dia: "date(p.activada_en, '-5 hours')",
+  semana: "date(p.activada_en, '-5 hours', 'weekday 0', '-6 days')",
+  mes: "strftime('%Y-%m', p.activada_en, '-5 hours')",
+};
+
+export interface FiltrosDeActivaciones {
+  rango: Rango;
+  agrupar: Agrupacion;
+  /** Desglosar cada período por usuario. */
+  porUsuario: boolean;
+  /** Solo las activaciones de este usuario (id). */
+  usuario?: number;
+  plataforma?: string;
+}
+
+/** Una fila del reporte agrupado. */
+export interface FilaDeActivaciones {
+  /** "2026-11-11" (día o lunes de la semana) o "2026-11" (mes). */
+  periodo: string;
+  usuario: string | null;
+  activaciones: number;
+}
+
+/** Una placa activada, para el reporte sin agrupar ("detalle"). */
+export interface ActivacionDetallada {
+  activada_en: string;
+  codigo: string;
+  negocio: string | null;
+  plataforma: string;
+  usuario: string | null;
+}
+
+export interface ReporteDeActivaciones {
+  agrupadas: FilaDeActivaciones[];
+  detalle: ActivacionDetallada[];
+  total: number;
+}
+
+/**
+ * Placas activadas en el rango. Cuenta la PRIMERA activación de cada placa
+ * (la fecha `activada_en`): reactivar no suma, y una placa desactivada
+ * después sigue contando en el día en que se activó.
+ */
+export async function reporteDeActivaciones(db: D1Database, f: FiltrosDeActivaciones): Promise<ReporteDeActivaciones> {
+  const [inicio, fin] = limitesUtc(f.rango);
+  const condiciones = ["p.activada_en >= ?", "p.activada_en < ?"];
+  const valores: Array<string | number> = [inicio, fin];
+  if (f.usuario !== undefined) {
+    condiciones.push("p.activada_por = ?");
+    valores.push(f.usuario);
+  }
+  if (aPlataforma(f.plataforma) !== undefined) {
+    condiciones.push("m.plataforma = ?");
+    valores.push(f.plataforma ?? "");
+  }
+  const desde = `FROM placas p JOIN modelos m ON m.id = p.modelo LEFT JOIN usuarios u ON u.id = p.activada_por
+                 WHERE ${condiciones.join(" AND ")}`;
+
+  const total = (await db.prepare(`SELECT COUNT(*) AS n ${desde}`).bind(...valores).first<number>("n")) ?? 0;
+
+  if (f.agrupar === "detalle") {
+    const { results } = await db
+      .prepare(
+        `SELECT p.activada_en, p.codigo, p.negocio, m.plataforma, u.nombre AS usuario
+         ${desde} ORDER BY p.activada_en DESC, p.codigo LIMIT ${MAX_FILAS}`,
+      )
+      .bind(...valores)
+      .all<ActivacionDetallada>();
+    return { agrupadas: [], detalle: results, total };
+  }
+
+  const periodo = PERIODO_SQL[f.agrupar];
+  const { results } = await db
+    .prepare(
+      f.porUsuario
+        ? `SELECT ${periodo} AS periodo, u.nombre AS usuario, COUNT(*) AS activaciones
+           ${desde} GROUP BY periodo, p.activada_por ORDER BY periodo DESC, activaciones DESC, usuario LIMIT ${MAX_FILAS}`
+        : `SELECT ${periodo} AS periodo, NULL AS usuario, COUNT(*) AS activaciones
+           ${desde} GROUP BY periodo ORDER BY periodo DESC LIMIT ${MAX_FILAS}`,
+    )
+    .bind(...valores)
+    .all<FilaDeActivaciones>();
+  return { agrupadas: results, detalle: [], total };
+}
+
+/** Texto del período para mostrar: "11/11/2026", "Semana del 09/11/2026" o "11/2026". */
+export function periodoLegible(periodo: string, agrupar: Agrupacion): string {
+  if (agrupar === "mes") {
+    const [anio, mes] = periodo.split("-");
+    return `${mes}/${anio}`;
+  }
+  return agrupar === "semana" ? `Semana del ${diaLegible(periodo)}` : diaLegible(periodo);
+}
+
+// ───────────────────────── CSV ─────────────────────────
+
+/** Prepara un valor para una celda de CSV. */
+function celda(valor: string | number | null): string {
+  let texto = valor === null ? "" : String(valor);
+  // Un texto que empieza por = + - @ se interpretaría como fórmula al abrir
+  // el archivo en Excel: se le antepone un apóstrofo para que sea solo texto.
+  if (typeof valor === "string" && /^[=+\-@]/.test(texto)) texto = `'${texto}`;
+  // Comillas, comas y saltos de línea obligan a encerrar el valor entre comillas.
+  return /[",\r\n]/.test(texto) ? `"${texto.replaceAll('"', '""')}"` : texto;
+}
+
+/** Convierte filas en texto CSV. La primera fila son los títulos. */
+export function aCsv(filas: ReadonlyArray<ReadonlyArray<string | number | null>>): string {
+  return filas.map((fila) => fila.map(celda).join(",")).join("\r\n") + "\r\n";
+}
