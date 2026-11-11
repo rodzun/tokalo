@@ -43,6 +43,17 @@ confirma el método y que el link oficial también abre la reseña en el navegad
 Links de Maps compartidos desde iPhone (maps.app.goo.gl/...?g_st=ic): el primer salto
 302 trae `ftid=0xAAAA:0xBBBB`, también cuando la petición sale desde Cloudflare.
 
+## Lotes y modelos (etapa 7)
+
+- Lotes: se crean y se eliminan desde `/admin/lotes`. Tope de 500 placas por lote.
+  Solo se elimina un lote si ninguna de sus placas fue activada alguna vez.
+- El número de lote no se reutiliza (AUTOINCREMENT, migración 0003).
+- Modelos: se crean y se eliminan desde `/admin/modelos`. Solo se elimina un modelo sin
+  lotes ni placas. No hay edición de modelos.
+- CPU medido en desarrollo: crear lote de 500, prom. 3,5 ms (máx. 5); CSV de 500, 3,2 ms.
+- Migraciones que recrean una tabla referenciada por otras: probarlas antes en una base
+  local CON datos (`wrangler d1 ... --local`). Los tests solo migran bases vacías.
+
 ## Admin: presentación de datos
 
 - En la base las fechas van en UTC; en el admin se muestran en hora de Perú (UTC-5).
@@ -59,7 +70,8 @@ Links de Maps compartidos desde iPhone (maps.app.goo.gl/...?g_st=ic): el primer 
 
 ## Login y sesión (aprobado 2026-11-11)
 
-- Usuario y contraseña propios. PBKDF2-SHA256 con 25 000 iteraciones; el número va
+- Usuario y contraseña propios. PBKDF2-SHA256 con 20 000 iteraciones (decisión del dueño;
+  empezó en 25 000 y un login de 24 llegó a 11 ms de CPU); el número va
   guardado dentro del hash (`pbkdf2$iteraciones$sal$hash`) para poder subirlo.
 - Contraseñas generadas por `scripts/crear_usuario.py`, no elegidas por la persona.
 - Cookie firmada, 30 días, `Secure; HttpOnly; SameSite=Lax; Path=/`. Debe enviarse cuando
