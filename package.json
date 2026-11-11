@@ -11,7 +11,8 @@
     "migrar:dev": "wrangler d1 migrations apply tokalo-dev --remote",
     "datos:dev": "wrangler d1 execute tokalo-dev --remote --file datos/prueba.sql",
     "desplegar:produccion": "wrangler deploy --env produccion",
-    "migrar:produccion": "wrangler d1 migrations apply tokalo --env produccion --remote"
+    "migrar:produccion": "wrangler d1 migrations apply tokalo --env produccion --remote",
+    "respaldar": "python3 scripts/respaldar.py produccion"
   },
   "devDependencies": {
     "@cloudflare/vitest-plugin": "^1.7.0",

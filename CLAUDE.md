@@ -133,6 +133,18 @@ Links de Maps compartidos desde iPhone (maps.app.goo.gl/...?g_st=ic): el primer 
   (máx. 10). Con 500 filas en pantalla el detalle daba prom. 8 (máx. 11), por eso el tope.
   Si los picos molestan, bajar `MAX_FILAS` en `src/lib/reportes.ts`.
 
+## Respaldo (etapa 13)
+
+- `npm run respaldar` (o `python3 scripts/respaldar.py dev`) exporta la base a
+  `respaldos/BASE-FECHA.sql`, carpeta ignorada por git (datos de clientes).
+- El script reordena el archivo de Cloudflare (todos los CREATE TABLE primero): tal como
+  sale de `wrangler d1 export` NO se puede restaurar, porque crea `placas` antes que `lotes`.
+- Restauración probada el 2026-11-11: respaldo de producción cargado en una base local
+  vacía, con las mismas cuentas de filas y sin errores de claves foráneas.
+- D1 Time Travel: siempre activo, sin costo, 7 días de historial en el plan gratuito.
+- Pendiente del dueño: probar QR, chip y link de reseña en Android, y un link de Maps
+  compartido desde Android.
+
 ## Admin: presentación de datos (pedidos del dueño)
 
 - En la base las fechas van en UTC; en el admin se muestran en hora de Perú (UTC-5).
@@ -188,7 +200,7 @@ Links de Maps compartidos desde iPhone (maps.app.goo.gl/...?g_st=ic): el primer 
     y plataforma por modelo (hecha).
 12. Reportes: escaneos por código y canal; activaciones por día/semana/mes y por usuario,
     con filtros (hecha).
-13. README y respaldo.
+13. README y respaldo (hecha). Fase 1 completa.
 
 Desde la etapa 4 hay dos entornos: desarrollo (workers.dev) y producción (tokaloperu.com).
 Cada etapa se despliega primero a desarrollo; a producción solo con aviso previo.
