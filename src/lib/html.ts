@@ -66,6 +66,11 @@ nav a{color:#111827;font-weight:600;text-decoration:none}
 .estado{display:inline-block;padding:.15rem .6rem;border-radius:1rem;font-size:.875rem;font-weight:600;background:#e5e7eb;color:#111827}
 .estado.activa{background:#dcfce7;color:#166534}
 .estado.desactivada{background:#fee2e2;color:#991b1b}
+.fila strong a{color:#111827;font-family:ui-monospace,monospace;letter-spacing:.08em}
+.fila a.valor{display:block;margin:0;font-weight:400}
+a.peligro{color:#b91c1c}
+label.casilla{font-weight:400;margin:0 0 1rem}
+label.casilla input{display:inline;width:auto;margin:0 .4rem 0 0}
 .dos{display:flex;gap:.75rem}.dos>div{flex:1}
 .dato{font-family:ui-monospace,monospace;font-size:1.5rem;letter-spacing:.1em;color:#111827}
 `;
