@@ -145,6 +145,25 @@ Links de Maps compartidos desde iPhone (maps.app.goo.gl/...?g_st=ic): el primer 
 - Pendiente del dueño: probar QR, chip y link de reseña en Android, y un link de Maps
   compartido desde Android.
 
+## Límite diario de lecturas de D1 (incidente del 2026-11-11)
+
+- El plan gratuito de D1 permite 5 millones de filas leídas al día POR CUENTA (desarrollo
+  y producción comparten el cupo). Al pasarlo, toda lectura falla hasta la medianoche UTC
+  (19:00 de Lima): las placas activas mandan a la landing y el admin muestra la página
+  de respaldo. No genera cobros.
+- El 2026-11-11 se agotó por las pruebas de carga de las etapas 11 y 12: cada vista de
+  reporte sobre 20 000 escaneos lee unas 60 000 a 120 000 filas (el JOIN cuenta cada
+  tabla), y se hicieron decenas de vistas.
+- Regla: no repetir pruebas de carga con decenas de miles de filas en la cuenta real el
+  mismo día; hacerlas en una base local (`--local`) o con pocas solicitudes.
+- Riesgo del producto: con muchos escaneos, unas pocas decenas de vistas de reportes al
+  día pueden agotar el cupo y tumbar las redirecciones. Pendiente de decidir con el dueño
+  (tabla resumen diaria, o límites en los reportes).
+- `wrangler tail NOMBRE --env X` añade el entorno al nombre: para producción usar
+  `npx wrangler tail tokalo` (sin `--env`).
+- Medición de /n y /q en producción con arranques en frío: PENDIENTE. Requiere una placa
+  activa en producción (el 2026-11-11 no había ninguna) y cupo de D1 disponible.
+
 ## Admin: presentación de datos (pedidos del dueño)
 
 - En la base las fechas van en UTC; en el admin se muestran en hora de Perú (UTC-5).
