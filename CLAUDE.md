@@ -77,8 +77,9 @@ Links de Maps compartidos desde iPhone (maps.app.goo.gl/...?g_st=ic): el primer 
 - Verificado contra Google real desde local y desde Cloudflare con los tres links de
   iPhone. Links compartidos desde Android: PENDIENTE (el dueño no tenía uno a mano).
 - CPU medido en desarrollo: prom. 2,1 ms (máx. 7).
-- Destino elegido: link de reseña directo (`writereview?placeid=`). Pendiente la prueba
-  del dueño en teléfonos con las placas A/B/C de desarrollo.
+- Destino elegido: link de reseña directo (`writereview?placeid=`). El dueño probó en
+  iPhone: el directo y el oficial g.page funcionan igual; la ficha de Maps obliga a más
+  pasos y se descartó. Android: pendiente de probar.
 
 ## Activación (etapa 10)
 
@@ -90,6 +91,32 @@ Links de Maps compartidos desde iPhone (maps.app.goo.gl/...?g_st=ic): el primer 
   Tripadvisor). Todo destino guardado debe ser https.
 - CPU medido en desarrollo (una muestra de cada uno): formulario 5 ms, revisar 6 ms,
   activar 3 ms, ficha 4 ms.
+
+## Plataformas (etapa 11, pedido del dueño)
+
+- Cada modelo es de una plataforma (columna `modelos.plataforma`, migración 0004): google,
+  tripadvisor, instagram, facebook, tiktok u otra. Un "Tótem pavonado" de Google y otro de
+  Instagram son modelos distintos, con ids distintos. Los modelos D a H son de Google.
+- La lista de plataformas y sus dominios está en `src/lib/plataformas.ts`; añadir una es
+  editar ese archivo.
+- Activación según plataforma: Google convierte el link de Maps; las demás usan el link
+  del negocio tal cual (https obligatorio).
+- Si el destino no es del dominio de la plataforma del modelo, se AVISA pero no se bloquea;
+  queda marcado en la ficha y en la lista, y hay un filtro para ver solo esos.
+
+## Lista de placas y cambios (etapa 11)
+
+- `/admin/placas`: una tarjeta por placa con estado, negocio, destino, modelo, plataforma
+  y escaneos (total, 30 días, NFC, QR). Filtros por estado, plataforma, texto y "destino
+  que no es de su plataforma". De 50 en 50.
+- Ficha: cambiar destino (mismo flujo revisar/probar/guardar; anota historial), editar
+  datos del negocio, desactivar (con confirmación) y reactivar. Historial visible.
+- Desactivar y reactivar no quedan registrados en ningún historial.
+- CPU medido en desarrollo con 509 placas y 20 000 escaneos (6 solicitudes de cada una):
+  lista prom. 4,2 ms (máx. 8); página 3 filtrada 4,3 (máx. 9); búsqueda 3,3; filtro "no
+  coinciden" 6,3 (máx. 8); ficha 2,3.
+- El filtro "no coinciden" lee todos los destinos y filtra en el Worker: su costo crece con
+  el número de placas activadas. Revisarlo si se pasa de unos pocos miles.
 
 ## Admin: presentación de datos (pedidos del dueño)
 
@@ -142,7 +169,8 @@ Links de Maps compartidos desde iPhone (maps.app.goo.gl/...?g_st=ic): el primer 
 8. QR en SVG (se prueba con la URL real).
 9. Conversión de Maps.
 10. Activación (hecha).
-11. Lista de placas con su destino, cambiar destino (con historial), desactivar y reactivar.
+11. Lista de placas con su destino, cambiar destino (con historial), desactivar y reactivar,
+    y plataforma por modelo (hecha en desarrollo; falta producción).
 12. Reportes: escaneos por código y canal; activaciones por día/semana/mes y por usuario,
     con filtros.
 13. README y respaldo.
