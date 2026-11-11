@@ -80,10 +80,24 @@ Links de Maps compartidos desde iPhone (maps.app.goo.gl/...?g_st=ic): el primer 
 - Destino elegido: link de reseña directo (`writereview?placeid=`). Pendiente la prueba
   del dueño en teléfonos con las placas A/B/C de desarrollo.
 
-## Admin: presentación de datos
+## Activación (etapa 10)
+
+- `/admin/placas/CODIGO`: formulario si está sin activar; ficha si está activa o desactivada.
+- Dos pasos en un mismo formulario: "Revisar link" (convierte y muestra el destino con
+  "Probar", sin guardar) y "Activar placa" (solo aparece tras revisar). Si el link se
+  cambia después de revisarlo, obliga a revisar otra vez.
+- Si no se puede convertir, se pide el link de reseña a mano (cualquier https; así entra
+  Tripadvisor). Todo destino guardado debe ser https.
+- CPU medido en desarrollo (una muestra de cada uno): formulario 5 ms, revisar 6 ms,
+  activar 3 ms, ficha 4 ms.
+
+## Admin: presentación de datos (pedidos del dueño)
 
 - En la base las fechas van en UTC; en el admin se muestran en hora de Perú (UTC-5).
-- El admin debe incluir una tabla de escaneos por código y canal (lecturas `n` y `q`).
+- Lista de placas en una sola tabla, con el destino de cada una a la vista, para detectar
+  de un vistazo destinos raros (el link manual permite cualquier https).
+- Reporte de escaneos por código y canal (lecturas `n` y `q`).
+- Reporte de activaciones agrupable por día, semana o mes y por usuario, con filtros.
 
 ## Condiciones para el código
 
@@ -127,9 +141,11 @@ Links de Maps compartidos desde iPhone (maps.app.goo.gl/...?g_st=ic): el primer 
 7. Códigos y lotes.
 8. QR en SVG (se prueba con la URL real).
 9. Conversión de Maps.
-10. Activación.
-11. Admin.
-12. README y respaldo.
+10. Activación (hecha).
+11. Lista de placas con su destino, cambiar destino (con historial), desactivar y reactivar.
+12. Reportes: escaneos por código y canal; activaciones por día/semana/mes y por usuario,
+    con filtros.
+13. README y respaldo.
 
 Desde la etapa 4 hay dos entornos: desarrollo (workers.dev) y producción (tokaloperu.com).
 Cada etapa se despliega primero a desarrollo; a producción solo con aviso previo.
