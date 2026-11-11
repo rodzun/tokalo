@@ -43,6 +43,11 @@ confirma el método y que el link oficial también abre la reseña en el navegad
 Links de Maps compartidos desde iPhone (maps.app.goo.gl/...?g_st=ic): el primer salto
 302 trae `ftid=0xAAAA:0xBBBB`, también cuando la petición sale desde Cloudflare.
 
+## Admin: presentación de datos
+
+- En la base las fechas van en UTC; en el admin se muestran en hora de Perú (UTC-5).
+- El admin debe incluir una tabla de escaneos por código y canal (lecturas `n` y `q`).
+
 ## Condiciones para el código
 
 - Pocas dependencias, sin frameworks grandes. Justificar cada una.
@@ -62,6 +67,14 @@ Links de Maps compartidos desde iPhone (maps.app.goo.gl/...?g_st=ic): el primer 
 - En cada solicitud con cookie se comprueba en la base que el usuario siga activo.
 - Límite de intentos: 5 fallos bloquean 15 minutos.
 - Los escaneos hechos con sesión no se registran en estadísticas.
+- CPU medido del login completo en desarrollo (12 solicitudes de cada tipo): login
+  correcto prom. 5,6 ms (máx. 8); login fallido prom. 6,0 ms (máx. 11); página del admin
+  con cookie 0,4 ms; escaneo con sesión 1,0 ms; escaneo público 0,8 ms.
+- Con sesión, /n y /q redirigen a `/admin/placas/CODIGO`, que muestra formulario o ficha.
+- Secreto `SECRETO_SESION` subido a ambos entornos con `wrangler secret put` (no está en
+  ningún archivo; en local, `.dev.vars`, ignorado por git).
+- Usuarios: `python3 scripts/crear_usuario.py dev|produccion --usuario X --nombre "Y"`.
+  Lo ejecuta el dueño en su terminal, para que la contraseña solo la vea él.
 - Placa desactivada: al público lo manda a la landing; con sesión muestra la ficha con
   botón para reactivarla, conservando sus datos.
 
