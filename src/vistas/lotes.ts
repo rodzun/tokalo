@@ -35,7 +35,7 @@ export function vistaLotes(
       return `<div class="fila">
 <strong>Lote ${l.id} · ${escapar(l.modelo)} · ${escapar(l.nombre_modelo)}</strong>
 <span>${l.cantidad} placas · ${l.usadas} activadas · ${escapar(aHoraPeru(l.creado_en))}</span>
-<a href="/admin/lotes/${l.id}.csv">Descargar CSV</a>${eliminar}
+<a href="/admin/lotes/${l.id}">Códigos y QR</a><a href="/admin/lotes/${l.id}.csv">Descargar CSV</a>${eliminar}
 </div>`;
     })
     .join("\n");
@@ -53,5 +53,38 @@ ${mensaje(aviso?.texto, aviso?.esError)}
 </form>
 <h2 style="margin-top:2rem">Lotes</h2>
 ${filas === "" ? "<p>Todavía no hay lotes.</p>" : filas}`,
+  );
+}
+
+/** Una placa en la lista de códigos de un lote. */
+export interface PlacaDeLote {
+  codigo: string;
+  estado: string;
+}
+
+const NOMBRE_ESTADO: Record<string, string> = {
+  sin_activar: "Sin activar",
+  activa: "Activa",
+  desactivada: "Desactivada",
+};
+
+/** Lista de códigos de un lote, cada uno con su QR para ver o descargar. */
+export function vistaCodigosDeLote(numero: number, modelo: string, placas: readonly PlacaDeLote[]): string {
+  const filas = placas
+    .map(
+      (p) => `<div class="fila">
+<strong class="dato">${escapar(p.codigo)}</strong>
+<span>${escapar(NOMBRE_ESTADO[p.estado] ?? p.estado)}</span>
+<a href="/admin/placas/${escapar(p.codigo)}/qr.svg">Ver QR</a><a href="/admin/placas/${escapar(p.codigo)}/qr.svg?descargar=1">Descargar QR</a>
+</div>`,
+    )
+    .join("\n");
+
+  return paginaAdmin(
+    `Lote ${numero}`,
+    `<h2>Lote ${numero}</h2>
+<p>${escapar(modelo)} · ${placas.length} placas</p>
+<p><a href="/admin/lotes/${numero}.csv">Descargar CSV</a> · <a href="/admin/lotes">Volver a lotes</a></p>
+${filas}`,
   );
 }

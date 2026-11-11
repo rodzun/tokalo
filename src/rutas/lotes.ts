@@ -1,9 +1,11 @@
 // Rutas de lotes (todas exigen sesión; eso lo comprueba rutas/admin.ts).
+import { normalizarCodigo } from "../lib/codigos";
 import { csvDeLote, crearLote, eliminarLote, MAX_POR_LOTE } from "../lib/lotes";
 import { enteroEntre, listarModelos } from "../lib/modelos";
+import { qrSvg, urlParaQr } from "../lib/qr";
 import { html, redirigirTrasEnvio } from "../lib/respuestas";
 import { vistaAviso, vistaConfirmar } from "../vistas/admin";
-import { type LoteEnLista, vistaLotes } from "../vistas/lotes";
+import { type LoteEnLista, type PlacaDeLote, vistaCodigosDeLote, vistaLotes } from "../vistas/lotes";
 import { leerFormulario, type PeticionAdmin } from "./tipos";
 
 // Mensajes que se muestran tras una acción, según ?aviso=... en la URL.
@@ -63,6 +65,44 @@ export async function rutasLotes(p: PeticionAdmin): Promise<Response | null> {
         "Cache-Control": "no-store",
       },
     });
+  }
+
+  // GET /admin/lotes/12 : los códigos del lote, con el enlace a cada QR.
+  const detalle = /^\/admin\/lotes\/(\d{1,9})$/.exec(ruta);
+  if (detalle !== null && metodo === "GET") {
+    const numero = Number(detalle[1]);
+    const lote = await env.DB.prepare(
+      "SELECT l.modelo, m.nombre FROM lotes l JOIN modelos m ON m.id = l.modelo WHERE l.id = ?",
+    )
+      .bind(numero)
+      .first<{ modelo: string; nombre: string }>();
+    if (lote === null) return html(vistaAviso("Lote no encontrado", "Ese lote no existe."), "no-store", 404);
+    const { results } = await env.DB.prepare("SELECT codigo, estado FROM placas WHERE lote = ? ORDER BY codigo")
+      .bind(numero)
+      .all<PlacaDeLote>();
+    return html(vistaCodigosDeLote(numero, `${lote.modelo} · ${lote.nombre}`, results));
+  }
+
+  // GET /admin/placas/XK7P2M/qr.svg : el QR de una placa.
+  // Con ?descargar=1 el navegador lo guarda como archivo en vez de mostrarlo.
+  const qr = /^\/admin\/placas\/([^/]+)\/qr\.svg$/.exec(ruta);
+  if (qr !== null && metodo === "GET") {
+    const codigo = normalizarCodigo(qr[1] ?? "");
+    const existe =
+      codigo !== null &&
+      (await env.DB.prepare("SELECT 1 AS si FROM placas WHERE codigo = ?").bind(codigo).first("si")) !== null;
+    if (codigo === null || !existe) {
+      return html(vistaAviso("Placa no encontrada", "Ese código no existe."), "no-store", 404);
+    }
+    const cabeceras = new Headers({
+      "Content-Type": "image/svg+xml",
+      // El QR de un código no cambia nunca: el navegador puede guardarlo un día.
+      "Cache-Control": "private, max-age=86400",
+    });
+    if (p.url.searchParams.get("descargar") === "1") {
+      cabeceras.set("Content-Disposition", `attachment; filename="tokalo-${codigo}.svg"`);
+    }
+    return new Response(qrSvg(urlParaQr(env.URL_BASE, codigo)), { headers: cabeceras });
   }
 
   // GET /admin/lotes/12/eliminar : pide confirmación.  POST: elimina.

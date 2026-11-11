@@ -56,6 +56,7 @@ nav a{color:#111827;font-weight:600;text-decoration:none}
 .ok{background:#f0fdf4;color:#166534;border-radius:.5rem;padding:.75rem;font-size:1rem;margin:0 0 1rem}
 .fila{background:#fff;border:1px solid #e5e7eb;border-radius:.75rem;padding:.9rem;margin:0 0 .75rem}
 .fila strong{display:block;font-size:1.0625rem}
+.fila strong.dato{font-size:1.25rem}
 .fila span{display:block;color:#4b5563;font-size:.9375rem}
 .fila a{display:inline-block;margin:.5rem 1rem 0 0;font-weight:600}
 .fila a.peligro{color:#b91c1c}
