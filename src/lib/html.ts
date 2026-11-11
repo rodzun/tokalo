@@ -36,6 +36,17 @@ p{font-size:1.125rem;color:#4b5563;margin:0 0 2rem}
 .boton{display:inline-block;padding:.9rem 1.5rem;border-radius:.75rem;
   background:#16a34a;color:#fff;font-weight:600;font-size:1.125rem;text-decoration:none}
 .boton:active{background:#15803d}
+/* Admin: formularios y fichas */
+h2{font-size:1.5rem;margin:0 0 1rem}
+form{text-align:left}
+label{display:block;font-weight:600;margin:0 0 .25rem}
+input{display:block;width:100%;padding:.75rem;margin:0 0 1rem;font-size:1rem;
+  border:1px solid #d1d5db;border-radius:.5rem;background:#fff}
+button{display:block;width:100%;padding:.9rem;border:0;border-radius:.75rem;
+  background:#111827;color:#fff;font-size:1.0625rem;font-weight:600}
+button.secundario{background:#e5e7eb;color:#111827}
+.aviso{background:#fef2f2;color:#991b1b;border-radius:.5rem;padding:.75rem;font-size:1rem;margin:0 0 1rem}
+.dato{font-family:ui-monospace,monospace;font-size:1.5rem;letter-spacing:.1em;color:#111827}
 `;
 
 /** Envuelve un contenido en la estructura básica de una página. */

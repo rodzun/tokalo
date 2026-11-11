@@ -2,6 +2,7 @@
 import { createExecutionContext, waitOnExecutionContext } from "cloudflare:test";
 import { env } from "cloudflare:workers";
 import worker from "../src/index";
+import { NOMBRE_COOKIE, hashClave, valorDeSesion } from "../src/lib/auth";
 
 const BASE = "https://tokaloperu.com";
 
@@ -55,4 +56,22 @@ export async function ejecutarSql(sql: string): Promise<void> {
     .map((s) => s.trim())
     .filter((s) => s.length > 0);
   await env.DB.batch(sentencias.map((s) => env.DB.prepare(s)));
+}
+
+/**
+ * Crea un usuario con contraseña real (hash con pocas iteraciones, para que
+ * los tests sean rápidos) y devuelve su id.
+ */
+export async function crearUsuario(usuario: string, clave: string, activo = true): Promise<number> {
+  const fila = await env.DB.prepare(
+    "INSERT INTO usuarios (nombre, usuario, hash_clave, activo, creado_en) VALUES (?, ?, ?, ?, '2026-11-11T00:00:00Z') RETURNING id",
+  )
+    .bind("Persona " + usuario, usuario, await hashClave(clave, 1000), activo ? 1 : 0)
+    .first<number>("id");
+  return fila ?? 0;
+}
+
+/** Cabeceras con una cookie de sesión válida para ese usuario. */
+export async function cabecerasConSesion(idUsuario: number, vence?: number): Promise<Record<string, string>> {
+  return { Cookie: `${NOMBRE_COOKIE}=${await valorDeSesion(env, idUsuario, vence)}` };
 }

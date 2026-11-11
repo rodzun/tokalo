@@ -5,6 +5,7 @@
 //   2. `atender`: red de seguridad. Si `enrutar` lanza una excepción, la
 //      registra y responde algo razonable. El público nunca ve un error 500.
 import { paginaDeRespaldo, redirigir } from "./lib/respuestas";
+import { enrutarAdmin } from "./rutas/admin";
 import { escaneo, icono, paginaLanding, robots } from "./rutas/publico";
 
 /** Firma de un enrutador: recibe la solicitud y devuelve la respuesta. */
@@ -28,6 +29,11 @@ export const enrutar: Enrutador = async (solicitud, env, ctx) => {
   if (url.hostname.startsWith("www.")) {
     url.hostname = url.hostname.slice("www.".length);
     return new Response(null, { status: 301, headers: { Location: url.toString() } });
+  }
+
+  // Todo lo de /admin tiene su propio enrutador.
+  if (ruta === "/admin" || ruta.startsWith("/admin/")) {
+    return enrutarAdmin(solicitud, env, url);
   }
 
   // Todas las rutas públicas son de solo lectura.
@@ -83,7 +89,8 @@ export async function atender(
 
     // Si lo que falló fue "/", redirigir a "/" sería un bucle:
     // respondemos una página fija que no depende de nada.
-    if (ruta === "/" || ruta === "?") {
+    // En el admin tampoco se redirige: mandar a la landing confundiría.
+    if (ruta === "/" || ruta === "?" || ruta.startsWith("/admin")) {
       return paginaDeRespaldo();
     }
     return redirigir("/");

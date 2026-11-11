@@ -1,4 +1,5 @@
 // Rutas públicas: lo que ve cualquier persona, sin iniciar sesión.
+import { cookieBorrada, leerSesion, traeCookie } from "../lib/auth";
 import { normalizarCodigo } from "../lib/codigos";
 import { type Canal, debeContarse, registrarEscaneo } from "../lib/escaneos";
 import { ICONO_SVG } from "../lib/html";
@@ -23,8 +24,11 @@ export function esHttps(texto: string | null): texto is string {
 
 /**
  * GET /n/:codigo (chip NFC) y GET /q/:codigo (QR).
- * Sin sesión: placa activa -> 302 a su destino; todo lo demás -> landing.
- * (El comportamiento con sesión llega con el login.)
+ *
+ *   sin sesión + placa activa      -> 302 a su destino (y cuenta como escaneo)
+ *   sin sesión + cualquier otra    -> landing
+ *   con sesión + placa existente   -> /admin/placas/CODIGO (formulario o ficha)
+ *   código inexistente             -> landing, con o sin sesión
  */
 export async function escaneo(
   solicitud: Request,
@@ -37,20 +41,34 @@ export async function escaneo(
   const codigo = normalizarCodigo(codigoRecibido);
   if (codigo === null) return redirigir("/");
 
+  // Sin cookie, esto no consulta la base: el público no paga ese costo.
+  const usuario = await leerSesion(solicitud, env);
+
   const placa = await env.DB.prepare("SELECT estado, destino FROM placas WHERE codigo = ?")
     .bind(codigo)
     .first<PlacaParaRedirigir>();
 
-  // `placa` es null si el código no existe.
-  if (placa === null || placa.estado !== "activa" || !esHttps(placa.destino)) {
-    return redirigir("/");
+  // Con sesión: a la página de la placa en el admin. No cuenta como escaneo.
+  if (usuario !== null) {
+    return redirigir(placa === null ? "/" : `/admin/placas/${codigo}`);
   }
 
-  // Estadísticas. `waitUntil` deja la escritura corriendo DESPUÉS de enviar
-  // la respuesta: la persona no espera por ella. Si falla, solo queda en los
-  // logs; la redirección ya salió y no depende de esto.
-  const conSesion = false; // se sabrá de verdad cuando exista el login
-  if (debeContarse(solicitud, conSesion)) {
+  const respuesta =
+    placa !== null && placa.estado === "activa" && esHttps(placa.destino)
+      ? redirigir(placa.destino)
+      : redirigir("/");
+
+  // Traía una cookie que ya no vale (vencida, alterada o de un usuario
+  // desactivado): se trata como público y se le borra.
+  if (traeCookie(solicitud)) {
+    respuesta.headers.append("Set-Cookie", cookieBorrada());
+  }
+
+  // Estadísticas: solo redirecciones reales a un destino.
+  // `waitUntil` deja la escritura corriendo DESPUÉS de enviar la respuesta:
+  // la persona no espera por ella. Si falla, solo queda en los logs.
+  const fueAlDestino = respuesta.headers.get("Location") !== "/";
+  if (fueAlDestino && debeContarse(solicitud)) {
     ctx.waitUntil(
       registrarEscaneo(env.DB, codigo, canal, solicitud).catch((error: unknown) => {
         console.error("escaneo_no_registrado", {
@@ -62,7 +80,7 @@ export async function escaneo(
     );
   }
 
-  return redirigir(placa.destino);
+  return respuesta;
 }
 
 /** GET / : la landing. El navegador puede guardarla 5 minutos. */

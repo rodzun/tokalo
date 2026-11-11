@@ -11,7 +11,13 @@ export default defineConfig({
       const migraciones = await readD1Migrations("./migrations");
       return {
         wrangler: { configPath: "./wrangler.toml" },
-        miniflare: { bindings: { MIGRACIONES_TEST: migraciones } },
+        miniflare: {
+          bindings: {
+            MIGRACIONES_TEST: migraciones,
+            // Secreto de mentira, solo para los tests.
+            SECRETO_SESION: "secreto-solo-para-tests-0123456789abcdef",
+          },
+        },
       };
     }),
   ],
