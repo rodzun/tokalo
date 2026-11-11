@@ -1,0 +1,13 @@
+name = "tokalo-prueba-py"
+main = "src/entry.py"
+compatibility_date = "2026-11-10"
+compatibility_flags = ["python_workers"]
+
+[observability]
+enabled = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "tokalo-prueba"
+database_id = "PENDIENTE"
+migrations_dir = "../migrations"

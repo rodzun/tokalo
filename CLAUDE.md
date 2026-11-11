@@ -11,6 +11,14 @@ El dueño trabaja solo, es backend Python y no sabe frontend.
 - Explicar cada paso manual que le toque al dueño (login, dominio) y por qué.
 - Responder en español, directo y breve.
 - Commits pequeños. No desplegar a producción sin avisar.
+- Preguntar antes de instalar cualquier herramienta o paquete.
+
+## Entorno
+
+- Python: virtualenv `nfc` de virtualenvwrapper (`~/.virtualenvs/nfc`). No crear otros.
+- Los Workers Python se ejecutan y despliegan con `pywrangler` (paquete `workers-py`,
+  que usa `uv` por dentro; ambos instalados con pip en `nfc`).
+- `wrangler` está en `node_modules` del proyecto: usar `npx wrangler`.
 
 ## Decisiones técnicas
 
