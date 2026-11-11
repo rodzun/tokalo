@@ -10,6 +10,7 @@ import {
 import { normalizarCodigo } from "../lib/codigos";
 import { html, redirigirTrasEnvio } from "../lib/respuestas";
 import { vistaAviso, vistaInicio, vistaLogin, vistaPlacaProvisional } from "../vistas/admin";
+import { rutasConvertir } from "./convertir";
 import { rutasLotes } from "./lotes";
 import { rutasModelos } from "./modelos";
 import type { PeticionAdmin } from "./tipos";
@@ -78,10 +79,11 @@ export async function enrutarAdmin(solicitud: Request, env: Env, url: URL): Prom
     return redirigirTrasEnvio("/admin/login", traeCookie(solicitud) ? cookieBorrada() : undefined);
   }
 
-  // Lotes y modelos tienen sus propios archivos. Cada uno devuelve null si
+  // Lotes, modelos y el conversor tienen sus propios archivos. Cada uno devuelve null si
   // la ruta no es suya, y entonces se prueba con el siguiente.
   const peticion: PeticionAdmin = { solicitud, env, url, ruta, metodo, usuario };
-  const respuesta = (await rutasLotes(peticion)) ?? (await rutasModelos(peticion));
+  const respuesta =
+    (await rutasLotes(peticion)) ?? (await rutasModelos(peticion)) ?? (await rutasConvertir(peticion));
   if (respuesta !== null) return respuesta;
 
   if (metodo === "GET") {

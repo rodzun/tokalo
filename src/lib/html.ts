@@ -51,7 +51,7 @@ select{display:block;width:100%;padding:.75rem;margin:0 0 1rem;font-size:1rem;
 button.peligro{background:#b91c1c}
 main.admin{text-align:left;padding-top:1.25rem}
 main.admin p{font-size:1rem;margin:0 0 1rem}
-nav{display:flex;gap:1rem;margin:0 0 1.5rem;padding:0 0 .75rem;border-bottom:1px solid #e5e7eb}
+nav{display:flex;flex-wrap:wrap;gap:.5rem 1rem;margin:0 0 1.5rem;padding:0 0 .75rem;border-bottom:1px solid #e5e7eb}
 nav a{color:#111827;font-weight:600;text-decoration:none}
 .ok{background:#f0fdf4;color:#166534;border-radius:.5rem;padding:.75rem;font-size:1rem;margin:0 0 1rem}
 .fila{background:#fff;border:1px solid #e5e7eb;border-radius:.75rem;padding:.9rem;margin:0 0 .75rem}
