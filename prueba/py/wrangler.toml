@@ -9,5 +9,5 @@ enabled = true
 [[d1_databases]]
 binding = "DB"
 database_name = "tokalo-prueba"
-database_id = "PENDIENTE"
+database_id = "d0eba3a6-6b99-429d-a3bf-f4a08184f325"
 migrations_dir = "../migrations"
