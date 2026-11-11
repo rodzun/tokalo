@@ -13,6 +13,11 @@ El dueño trabaja solo, es backend Python y no sabe frontend.
 - Responder en español, directo y breve.
 - Commits pequeños. No desplegar a producción sin avisar.
 - Preguntar antes de instalar cualquier herramienta o paquete.
+- Las pruebas de carga se hacen solo en la base local (`--local`), nunca contra desarrollo
+  ni producción en la nube: el cupo de D1 es por cuenta y agotarlo tumba las redirecciones
+  del público.
+- Antes de cualquier prueba en la nube con más de 100 solicitudes, estimar las filas que
+  va a leer y pedir permiso al dueño.
 
 ## Decisión de lenguaje (paso 0, 2026-11-11)
 
@@ -154,8 +159,6 @@ Links de Maps compartidos desde iPhone (maps.app.goo.gl/...?g_st=ic): el primer 
 - El 2026-11-11 se agotó por las pruebas de carga de las etapas 11 y 12: cada vista de
   reporte sobre 20 000 escaneos lee unas 60 000 a 120 000 filas (el JOIN cuenta cada
   tabla), y se hicieron decenas de vistas.
-- Regla: no repetir pruebas de carga con decenas de miles de filas en la cuenta real el
-  mismo día; hacerlas en una base local (`--local`) o con pocas solicitudes.
 - Riesgo del producto: con muchos escaneos, unas pocas decenas de vistas de reportes al
   día pueden agotar el cupo y tumbar las redirecciones. Pendiente de decidir con el dueño
   (tabla resumen diaria, o límites en los reportes).
