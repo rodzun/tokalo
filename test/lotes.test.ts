@@ -228,21 +228,21 @@ describe("lotes en /admin", () => {
 });
 
 describe("modelos en /admin", () => {
-  const NUEVO = { id: "j", nombre: "Tarjeta negra", tipo: "tarjeta", ancho_mm: "86", alto_mm: "54", version: "1" };
+  const NUEVO = { id: "j", nombre: "Tarjeta negra", tipo: "tarjeta", plataforma: "instagram", ancho_mm: "86", alto_mm: "54", version: "1" };
 
   it("crea un modelo y lo muestra en la lista", async () => {
     const r = await enviar("/admin/modelos", NUEVO, idUsuario);
     expect(r.headers.get("Location")).toBe("/admin/modelos?aviso=creado");
     const fila = await env.DB.prepare("SELECT * FROM modelos WHERE id = 'J'").first();
-    expect(fila).toEqual({ id: "J", nombre: "Tarjeta negra", tipo: "tarjeta", ancho_mm: 86, alto_mm: 54, version: 1 });
+    expect(fila).toEqual({ id: "J", nombre: "Tarjeta negra", tipo: "tarjeta", ancho_mm: 86, alto_mm: 54, version: 1, plataforma: "instagram" });
 
     const lista = await (await pedir("/admin/modelos", { headers: await cabecerasConSesion(idUsuario) })).text();
     expect(lista).toContain("J · Tarjeta negra");
-    expect(lista).toContain("Tarjeta · 86 x 54 mm · versión 1");
+    expect(lista).toContain("Instagram · Tarjeta · 86 x 54 mm · versión 1");
   });
 
   it("rechaza datos inválidos y un id repetido", async () => {
-    for (const cambio of [{ id: "" }, { id: "ABCD" }, { id: "D" }, { nombre: "" }, { tipo: "llavero" }, { ancho_mm: "0" }, { alto_mm: "x" }, { version: "" }]) {
+    for (const cambio of [{ id: "" }, { id: "ABCD" }, { id: "D" }, { nombre: "" }, { tipo: "llavero" }, { plataforma: "myspace" }, { plataforma: "" }, { ancho_mm: "0" }, { alto_mm: "x" }, { version: "" }]) {
       const r = await enviar("/admin/modelos", { ...NUEVO, ...cambio }, idUsuario);
       expect(r.status, JSON.stringify(cambio)).toBe(400);
     }

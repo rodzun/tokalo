@@ -24,6 +24,11 @@ describe("catálogo de modelos", () => {
     ]);
   });
 
+  it("los modelos iniciales son todos de Google", async () => {
+    const { results } = await env.DB.prepare("SELECT DISTINCT plataforma FROM modelos WHERE id IN ('D','E','F','G','H')").all();
+    expect(results).toEqual([{ plataforma: "google" }]);
+  });
+
   it("rechaza un tipo de modelo desconocido", async () => {
     await expect(
       env.DB.prepare(

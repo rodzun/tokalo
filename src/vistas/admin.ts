@@ -2,7 +2,7 @@
 import { escapar, pagina } from "../lib/html";
 
 /** Menú que encabeza las páginas del admin. */
-const MENU = `<nav><a href="/admin">Inicio</a><a href="/admin/lotes">Lotes</a><a href="/admin/modelos">Modelos</a><a href="/admin/convertir">Convertir</a></nav>`;
+const MENU = `<nav><a href="/admin/placas">Placas</a><a href="/admin/lotes">Lotes</a><a href="/admin/modelos">Modelos</a><a href="/admin/convertir">Convertir</a><a href="/admin">Cuenta</a></nav>`;
 
 /** Página del admin: con menú y alineada a la izquierda. */
 export function paginaAdmin(titulo: string, contenido: string): string {
@@ -42,6 +42,7 @@ export function vistaInicio(nombre: string): string {
     "Admin",
     `<h2>Hola, ${escapar(nombre)}</h2>
 <p>Acerca el celular a una placa para activarla o ver su ficha.</p>
+<p><a class="boton" href="/admin/placas">Ver todas las placas</a></p>
 ${BOTON_SALIR}`,
   );
 }
@@ -52,16 +53,22 @@ export function vistaAviso(titulo: string, texto: string): string {
 }
 
 /**
- * Pantalla de confirmación antes de eliminar algo.
+ * Pantalla de confirmación antes de una acción delicada (eliminar, desactivar).
  * `accion` es la ruta a la que se envía el formulario si se confirma.
  */
-export function vistaConfirmar(titulo: string, texto: string, accion: string, volver: string): string {
+export function vistaConfirmar(
+  titulo: string,
+  texto: string,
+  accion: string,
+  volver: string,
+  textoBoton = "Sí, eliminar",
+): string {
   return paginaAdmin(
     titulo,
     `<h2>${escapar(titulo)}</h2>
 <p>${escapar(texto)}</p>
 <form method="post" action="${escapar(accion)}">
-<button class="peligro">Sí, eliminar</button>
+<button class="peligro">${escapar(textoBoton)}</button>
 </form>
 <p style="margin-top:1rem"><a href="${escapar(volver)}">No, volver</a></p>`,
   );

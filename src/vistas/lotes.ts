@@ -3,6 +3,7 @@ import { aHoraPeru } from "../lib/fechas";
 import { escapar } from "../lib/html";
 import { MAX_POR_LOTE } from "../lib/lotes";
 import type { Modelo } from "../lib/modelos";
+import { nombreDePlataforma } from "../lib/plataformas";
 import { mensaje, paginaAdmin } from "./admin";
 
 /** Un lote tal como se muestra en la lista. */
@@ -22,7 +23,7 @@ export function vistaLotes(
   aviso?: { texto: string; esError: boolean },
 ): string {
   const opciones = modelos
-    .map((m) => `<option value="${escapar(m.id)}">${escapar(m.id)} · ${escapar(m.nombre)}</option>`)
+    .map((m) => `<option value="${escapar(m.id)}">${escapar(m.id)} · ${escapar(m.nombre)} · ${escapar(nombreDePlataforma(m.plataforma))}</option>`)
     .join("");
 
   const filas = lotes

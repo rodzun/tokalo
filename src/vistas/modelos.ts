@@ -1,6 +1,7 @@
 // Pantalla de modelos: crear, listar y eliminar.
 import { escapar } from "../lib/html";
 import { type Modelo, TIPOS } from "../lib/modelos";
+import { NOMBRE_PLATAFORMA, PLATAFORMAS, nombreDePlataforma } from "../lib/plataformas";
 import { mensaje, paginaAdmin } from "./admin";
 
 const NOMBRE_TIPO: Record<string, string> = { totem: "Tótem", mesa: "Mesa", tarjeta: "Tarjeta" };
@@ -13,13 +14,15 @@ export function vistaModelos(
     .map(
       (m) => `<div class="fila">
 <strong>${escapar(m.id)} · ${escapar(m.nombre)}</strong>
-<span>${escapar(NOMBRE_TIPO[m.tipo] ?? m.tipo)} · ${m.ancho_mm} x ${m.alto_mm} mm · versión ${m.version}</span>
+<span>${escapar(nombreDePlataforma(m.plataforma))} · ${escapar(NOMBRE_TIPO[m.tipo] ?? m.tipo)} · ${m.ancho_mm} x ${m.alto_mm} mm · versión ${m.version}</span>
 <a class="peligro" href="/admin/modelos/${escapar(m.id)}/eliminar">Eliminar</a>
 </div>`,
     )
     .join("\n");
 
   const opciones = TIPOS.map((t) => `<option value="${t}">${escapar(NOMBRE_TIPO[t] ?? t)}</option>`).join("");
+
+  const plataformas = PLATAFORMAS.map((p) => `<option value="${p}">${escapar(NOMBRE_PLATAFORMA[p])}</option>`).join("");
 
   return paginaAdmin(
     "Modelos",
@@ -34,6 +37,8 @@ ${filas === "" ? "<p>Todavía no hay modelos.</p>" : filas}
 <input id="nombre" name="nombre" maxlength="60" autocomplete="off" required>
 <label for="tipo">Tipo</label>
 <select id="tipo" name="tipo" required>${opciones}</select>
+<label for="plataforma">Plataforma a la que apuntan sus placas</label>
+<select id="plataforma" name="plataforma" required>${plataformas}</select>
 <div class="dos">
 <div><label for="ancho_mm">Ancho (mm)</label>
 <input id="ancho_mm" name="ancho_mm" type="number" inputmode="numeric" min="1" max="2000" required></div>
