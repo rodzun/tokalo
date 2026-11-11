@@ -8,8 +8,19 @@ main = "src/index.ts"
 compatibility_date = "2026-11-10"
 workers_dev = true
 
-# Logs del Worker: guarda cada solicitud y cada console.error para verlos
-# en el panel de Cloudflare (Workers > tokalo-dev > Logs). Gratis hasta
-# 200 000 eventos al día.
-[observability]
+# Logs del Worker: guarda cada solicitud y cada console.error. Se ven en el
+# panel de Cloudflare: Workers & Pages > tokalo-dev > Observability.
+# Gratis hasta 200 000 eventos al día. Las trazas no nos hacen falta.
+[observability.logs]
 enabled = true
+invocation_logs = true
+
+[observability.traces]
+enabled = false
+
+# Base de datos D1 de desarrollo. El Worker la ve como `env.DB`.
+[[d1_databases]]
+binding = "DB"
+database_name = "tokalo-dev"
+database_id = "423ca62c-5407-4431-bb2c-953e4fe7a929"
+migrations_dir = "migrations"
