@@ -7,7 +7,9 @@
     "dev": "wrangler dev",
     "test": "vitest run",
     "revisar": "wrangler types && tsc --noEmit",
-    "desplegar": "wrangler deploy"
+    "desplegar": "wrangler deploy",
+    "migrar:dev": "wrangler d1 migrations apply tokalo-dev --remote",
+    "datos:dev": "wrangler d1 execute tokalo-dev --remote --file datos/prueba.sql"
   },
   "devDependencies": {
     "@cloudflare/vitest-plugin": "^1.7.0",
