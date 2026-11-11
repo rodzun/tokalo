@@ -46,14 +46,21 @@ export interface ReporteDeEscaneos {
   totales: { nfc: number; qr: number; total: number; placas: number };
 }
 
-/** Máximo de filas que devuelve un reporte. */
-export const MAX_FILAS = 500;
+/**
+ * Máximo de filas por reporte. En pantalla son menos porque armar el HTML
+ * de cada fila gasta CPU (con 500 filas se medían picos de 11 a 15 ms; el
+ * límite del plan gratuito es 10). El CSV es más barato y admite más.
+ * Los totales siempre son de todo el rango, no solo de las filas mostradas.
+ */
+export const MAX_FILAS = 200;
+export const MAX_FILAS_CSV = 500;
 
 /** Lecturas por placa en el rango, separadas por canal, de más a menos. */
 export async function reporteDeEscaneos(
   db: D1Database,
   rango: Rango,
   plataforma?: string,
+  limite = MAX_FILAS,
 ): Promise<ReporteDeEscaneos> {
   const [inicio, fin] = limitesUtc(rango);
   const filtro = aPlataforma(plataforma) === undefined ? "" : "AND m.plataforma = ?3";
@@ -66,7 +73,7 @@ export async function reporteDeEscaneos(
     db.prepare(
       `SELECT e.codigo, p.negocio, m.plataforma,
               SUM(e.canal = 'n') AS nfc, SUM(e.canal = 'q') AS qr, COUNT(*) AS total
-       ${desde} GROUP BY e.codigo ORDER BY total DESC, e.codigo LIMIT ${MAX_FILAS}`,
+       ${desde} GROUP BY e.codigo ORDER BY total DESC, e.codigo LIMIT ${Math.floor(limite)}`,
     ).bind(...valores),
     db.prepare(
       `SELECT COALESCE(SUM(e.canal = 'n'), 0) AS nfc, COALESCE(SUM(e.canal = 'q'), 0) AS qr,
@@ -137,7 +144,12 @@ export interface ReporteDeActivaciones {
  * (la fecha `activada_en`): reactivar no suma, y una placa desactivada
  * después sigue contando en el día en que se activó.
  */
-export async function reporteDeActivaciones(db: D1Database, f: FiltrosDeActivaciones): Promise<ReporteDeActivaciones> {
+export async function reporteDeActivaciones(
+  db: D1Database,
+  f: FiltrosDeActivaciones,
+  limite = MAX_FILAS,
+): Promise<ReporteDeActivaciones> {
+  const tope = Math.floor(limite);
   const [inicio, fin] = limitesUtc(f.rango);
   const condiciones = ["p.activada_en >= ?", "p.activada_en < ?"];
   const valores: Array<string | number> = [inicio, fin];
@@ -158,7 +170,7 @@ export async function reporteDeActivaciones(db: D1Database, f: FiltrosDeActivaci
     const { results } = await db
       .prepare(
         `SELECT p.activada_en, p.codigo, p.negocio, m.plataforma, u.nombre AS usuario
-         ${desde} ORDER BY p.activada_en DESC, p.codigo LIMIT ${MAX_FILAS}`,
+         ${desde} ORDER BY p.activada_en DESC, p.codigo LIMIT ${tope}`,
       )
       .bind(...valores)
       .all<ActivacionDetallada>();
@@ -170,9 +182,9 @@ export async function reporteDeActivaciones(db: D1Database, f: FiltrosDeActivaci
     .prepare(
       f.porUsuario
         ? `SELECT ${periodo} AS periodo, u.nombre AS usuario, COUNT(*) AS activaciones
-           ${desde} GROUP BY periodo, p.activada_por ORDER BY periodo DESC, activaciones DESC, usuario LIMIT ${MAX_FILAS}`
+           ${desde} GROUP BY periodo, p.activada_por ORDER BY periodo DESC, activaciones DESC, usuario LIMIT ${tope}`
         : `SELECT ${periodo} AS periodo, NULL AS usuario, COUNT(*) AS activaciones
-           ${desde} GROUP BY periodo ORDER BY periodo DESC LIMIT ${MAX_FILAS}`,
+           ${desde} GROUP BY periodo ORDER BY periodo DESC LIMIT ${tope}`,
     )
     .bind(...valores)
     .all<FilaDeActivaciones>();

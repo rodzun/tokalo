@@ -6,6 +6,7 @@ import {
   type Agrupacion,
   type FiltrosDeActivaciones,
   MAX_FILAS,
+  MAX_FILAS_CSV,
   periodoLegible,
   type Rango,
   type ReporteDeActivaciones,
@@ -38,7 +39,7 @@ function camposComunes(rango: Rango, plataforma: string): string {
 /** Aviso cuando la tabla llegó al tope de filas. */
 function avisoDeTope(filas: number): string {
   return filas >= MAX_FILAS
-    ? `<p class="aviso">Se muestran las primeras ${MAX_FILAS} filas. Acorta el rango de fechas para ver el resto.</p>`
+    ? `<p class="aviso">Se muestran las primeras ${MAX_FILAS} filas (los totales son de todo el rango). El CSV trae hasta ${MAX_FILAS_CSV}; para ver el resto, acorta el rango de fechas.</p>`
     : "";
 }
 

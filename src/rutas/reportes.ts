@@ -7,6 +7,8 @@ import {
   AGRUPACIONES,
   type FiltrosDeActivaciones,
   leerRango,
+  MAX_FILAS,
+  MAX_FILAS_CSV,
   periodoLegible,
   reporteDeActivaciones,
   reporteDeEscaneos,
@@ -41,12 +43,13 @@ export async function rutasReportes(p: PeticionAdmin): Promise<Response | null> 
   const plataforma = q.get("plataforma") ?? "";
   const quiereCsv = q.get("formato") === "csv";
   const sufijo = `${rango.desde}-a-${rango.hasta}.csv`;
+  const limite = quiereCsv ? MAX_FILAS_CSV : MAX_FILAS;
 
   if (p.ruta === "/admin/reportes") return redirigirTrasEnvio("/admin/reportes/escaneos");
 
   // Lecturas por placa y canal.
   if (p.ruta === "/admin/reportes/escaneos") {
-    const reporte = await reporteDeEscaneos(p.env.DB, rango, plataforma);
+    const reporte = await reporteDeEscaneos(p.env.DB, rango, plataforma, limite);
     if (quiereCsv) {
       return descargaCsv(`tokalo-escaneos-${sufijo}`, [
         ["codigo", "negocio", "plataforma", "nfc", "qr", "total"],
@@ -66,7 +69,7 @@ export async function rutasReportes(p: PeticionAdmin): Promise<Response | null> 
       usuario: Number.isInteger(usuario) && usuario > 0 ? usuario : undefined,
       plataforma,
     };
-    const reporte = await reporteDeActivaciones(p.env.DB, filtros);
+    const reporte = await reporteDeActivaciones(p.env.DB, filtros, limite);
 
     if (quiereCsv) {
       if (filtros.agrupar === "detalle") {

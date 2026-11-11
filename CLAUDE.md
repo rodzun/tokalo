@@ -118,6 +118,21 @@ Links de Maps compartidos desde iPhone (maps.app.goo.gl/...?g_st=ic): el primer 
 - El filtro "no coinciden" lee todos los destinos y filtra en el Worker: su costo crece con
   el número de placas activadas. Revisarlo si se pasa de unos pocos miles.
 
+## Reportes (etapa 12)
+
+- `/admin/reportes/escaneos`: lecturas por placa separadas en NFC y QR, con totales.
+- `/admin/reportes/activaciones`: placas activadas por día, semana (lunes a domingo), mes o
+  placa por placa; opcionalmente separadas por usuario. Filtros por rango, usuario y
+  plataforma.
+- Fechas y agrupaciones en hora de Perú. Descarga CSV con `?formato=csv`.
+- "Activación" = primera activación (`placas.activada_en`). Reactivar no suma.
+- Tope de 200 filas en pantalla y 500 en CSV; los totales son siempre de todo el rango.
+- CPU medido en desarrollo con 509 placas, 20 000 escaneos y rango de 4 meses (8
+  solicitudes de cada una): escaneos prom. 5,6 ms (máx. 11); escaneos CSV 3,4 (máx. 6);
+  activaciones por día y usuario 4,5 (máx. 12); detalle 5,8 (máx. 9); detalle CSV 6,6
+  (máx. 10). Con 500 filas en pantalla el detalle daba prom. 8 (máx. 11), por eso el tope.
+  Si los picos molestan, bajar `MAX_FILAS` en `src/lib/reportes.ts`.
+
 ## Admin: presentación de datos (pedidos del dueño)
 
 - En la base las fechas van en UTC; en el admin se muestran en hora de Perú (UTC-5).
@@ -170,9 +185,9 @@ Links de Maps compartidos desde iPhone (maps.app.goo.gl/...?g_st=ic): el primer 
 9. Conversión de Maps.
 10. Activación (hecha).
 11. Lista de placas con su destino, cambiar destino (con historial), desactivar y reactivar,
-    y plataforma por modelo (hecha en desarrollo; falta producción).
+    y plataforma por modelo (hecha).
 12. Reportes: escaneos por código y canal; activaciones por día/semana/mes y por usuario,
-    con filtros.
+    con filtros (hecha).
 13. README y respaldo.
 
 Desde la etapa 4 hay dos entornos: desarrollo (workers.dev) y producción (tokaloperu.com).
