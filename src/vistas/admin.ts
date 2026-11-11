@@ -2,7 +2,7 @@
 import { escapar, pagina } from "../lib/html";
 
 /** Menú que encabeza las páginas del admin. */
-const MENU = `<nav><a href="/admin/placas">Placas</a><a href="/admin/lotes">Lotes</a><a href="/admin/modelos">Modelos</a><a href="/admin/convertir">Convertir</a><a href="/admin">Cuenta</a></nav>`;
+const MENU = `<nav><a href="/admin/placas">Placas</a><a href="/admin/lotes">Lotes</a><a href="/admin/modelos">Modelos</a><a href="/admin/reportes">Reportes</a><a href="/admin/convertir">Convertir</a><a href="/admin">Cuenta</a></nav>`;
 
 /** Página del admin: con menú y alineada a la izquierda. */
 export function paginaAdmin(titulo: string, contenido: string): string {

@@ -13,6 +13,7 @@ import { rutasConvertir } from "./convertir";
 import { rutasLotes } from "./lotes";
 import { rutasModelos } from "./modelos";
 import { rutasPlacas } from "./placas";
+import { rutasReportes } from "./reportes";
 import type { PeticionAdmin } from "./tipos";
 
 /**
@@ -79,13 +80,14 @@ export async function enrutarAdmin(solicitud: Request, env: Env, url: URL): Prom
     return redirigirTrasEnvio("/admin/login", traeCookie(solicitud) ? cookieBorrada() : undefined);
   }
 
-  // Lotes, placas, modelos y el conversor tienen sus propios archivos.
+  // Lotes, placas, modelos, reportes y el conversor tienen sus propios archivos.
   // Cada uno devuelve null si la ruta no es suya, y se prueba con el siguiente.
   const peticion: PeticionAdmin = { solicitud, env, url, ruta, metodo, usuario };
   const respuesta =
     (await rutasLotes(peticion)) ??
     (await rutasPlacas(peticion)) ??
     (await rutasModelos(peticion)) ??
+    (await rutasReportes(peticion)) ??
     (await rutasConvertir(peticion));
   if (respuesta !== null) return respuesta;
 
