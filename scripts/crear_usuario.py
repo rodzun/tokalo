@@ -22,7 +22,7 @@ import sys
 from datetime import datetime, timezone
 
 # Debe coincidir con ITERACIONES en src/lib/auth.ts.
-ITERACIONES = 25_000
+ITERACIONES = 20_000
 
 # Caracteres de la contraseña: sin 0/O, 1/l/I, para poder copiarla a mano.
 CARACTERES = "abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789"

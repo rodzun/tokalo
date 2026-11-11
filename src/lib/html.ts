@@ -46,11 +46,28 @@ button{display:block;width:100%;padding:.9rem;border:0;border-radius:.75rem;
   background:#111827;color:#fff;font-size:1.0625rem;font-weight:600}
 button.secundario{background:#e5e7eb;color:#111827}
 .aviso{background:#fef2f2;color:#991b1b;border-radius:.5rem;padding:.75rem;font-size:1rem;margin:0 0 1rem}
+select{display:block;width:100%;padding:.75rem;margin:0 0 1rem;font-size:1rem;
+  border:1px solid #d1d5db;border-radius:.5rem;background:#fff}
+button.peligro{background:#b91c1c}
+main.admin{text-align:left;padding-top:1.25rem}
+main.admin p{font-size:1rem;margin:0 0 1rem}
+nav{display:flex;gap:1rem;margin:0 0 1.5rem;padding:0 0 .75rem;border-bottom:1px solid #e5e7eb}
+nav a{color:#111827;font-weight:600;text-decoration:none}
+.ok{background:#f0fdf4;color:#166534;border-radius:.5rem;padding:.75rem;font-size:1rem;margin:0 0 1rem}
+.fila{background:#fff;border:1px solid #e5e7eb;border-radius:.75rem;padding:.9rem;margin:0 0 .75rem}
+.fila strong{display:block;font-size:1.0625rem}
+.fila span{display:block;color:#4b5563;font-size:.9375rem}
+.fila a{display:inline-block;margin:.5rem 1rem 0 0;font-weight:600}
+.fila a.peligro{color:#b91c1c}
+.dos{display:flex;gap:.75rem}.dos>div{flex:1}
 .dato{font-family:ui-monospace,monospace;font-size:1.5rem;letter-spacing:.1em;color:#111827}
 `;
 
-/** Envuelve un contenido en la estructura básica de una página. */
-export function pagina(titulo: string, contenido: string): string {
+/**
+ * Envuelve un contenido en la estructura básica de una página.
+ * `clase` es la clase CSS de <main>: "admin" alinea a la izquierda.
+ */
+export function pagina(titulo: string, contenido: string, clase = ""): string {
   return `<!doctype html>
 <html lang="es">
 <head>
@@ -61,7 +78,7 @@ export function pagina(titulo: string, contenido: string): string {
 <style>${ESTILOS}</style>
 </head>
 <body>
-<main>
+<main class="${clase}">
 ${contenido}
 </main>
 </body>

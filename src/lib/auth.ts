@@ -32,8 +32,8 @@ const aBytes = (texto: string): Uint8Array => new TextEncoder().encode(texto);
 // Es PBKDF2-HMAC-SHA256, igual que hashlib.pbkdf2_hmac("sha256", ...) en
 // Python: scripts/crear_usuario.py genera hashes que esto sabe verificar.
 
-/** 25 000 iteraciones cuestan ~3,5 ms de CPU (el plan gratuito da 10 ms). */
-export const ITERACIONES = 25_000;
+/** 20 000 iteraciones cuestan ~3 ms de CPU (el plan gratuito da 10 ms). */
+export const ITERACIONES = 20_000;
 /** Cloudflare rechaza más de 100 000 iteraciones. */
 const MAX_ITERACIONES = 100_000;
 
