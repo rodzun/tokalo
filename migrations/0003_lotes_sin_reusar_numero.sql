@@ -3,13 +3,18 @@
 -- lo mismo en los CSV que ya se mandaron a imprenta.
 --
 -- SQLite no permite añadir AUTOINCREMENT a una tabla existente: hay que
--- crear una tabla nueva, copiar los datos y reemplazar la anterior.
+-- guardar los datos aparte, recrear la tabla y devolverlos.
 
--- Las placas apuntan a lotes; esto pospone la comprobación de esas
--- referencias hasta el final de la migración.
+-- Las placas apuntan a lotes. Esto pospone la comprobación de esas
+-- referencias hasta el final de la migración: en medio quedan "rotas", y
+-- se arreglan al reinsertar los lotes en la tabla nueva con sus mismos ids.
 PRAGMA defer_foreign_keys = true;
 
-CREATE TABLE lotes_nueva (
+CREATE TABLE lotes_copia AS SELECT * FROM lotes;
+
+DROP TABLE lotes;
+
+CREATE TABLE lotes (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
   modelo      TEXT NOT NULL REFERENCES modelos(id),
   cantidad    INTEGER NOT NULL,
@@ -17,8 +22,7 @@ CREATE TABLE lotes_nueva (
   creado_en   TEXT NOT NULL
 );
 
-INSERT INTO lotes_nueva (id, modelo, cantidad, creado_por, creado_en)
-  SELECT id, modelo, cantidad, creado_por, creado_en FROM lotes;
+INSERT INTO lotes (id, modelo, cantidad, creado_por, creado_en)
+  SELECT id, modelo, cantidad, creado_por, creado_en FROM lotes_copia;
 
-DROP TABLE lotes;
-ALTER TABLE lotes_nueva RENAME TO lotes;
+DROP TABLE lotes_copia;
