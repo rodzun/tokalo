@@ -1,8 +1,10 @@
 // Tests de la etapa 8: códigos QR en SVG.
 import { env } from "cloudflare:workers";
+import qrcode from "qrcode-generator";
 import { beforeEach, describe, expect, it } from "vitest";
 import { crearLote } from "../src/lib/lotes";
 import { matrizQr, qrSvg, urlParaQr } from "../src/lib/qr";
+import { generarCodigo } from "../src/lib/codigos";
 import { cabecerasConSesion, crearUsuario, pedir, vaciarBase } from "./ayudas";
 
 let idUsuario = 0;
@@ -24,6 +26,40 @@ function hayOjo(m: boolean[][], fila: number, col: number): boolean {
   return true;
 }
 
+/** El mismo QR calculado por la librería qrcode-generator, como referencia. */
+function matrizDeReferencia(texto: string): boolean[][] {
+  const qr = qrcode(0, "M");
+  qr.addData(texto, "Alphanumeric");
+  qr.make();
+  const lado = qr.getModuleCount();
+  return Array.from({ length: lado }, (_, f) => Array.from({ length: lado }, (_, c) => qr.isDark(f, c)));
+}
+
+describe("nuestro codificador contra la librería de referencia", () => {
+  it("da el mismo QR, cuadro por cuadro, para 150 placas en producción y 150 en desarrollo", () => {
+    for (const base of ["https://tokaloperu.com", "https://tokalo-dev.tokaloperu.workers.dev"]) {
+      for (let i = 0; i < 150; i++) {
+        const url = urlParaQr(base, generarCodigo());
+        expect(matrizQr(url), url).toEqual(matrizDeReferencia(url));
+      }
+    }
+  });
+
+  it("da el mismo QR para textos de todas las longitudes admitidas (1 a 61)", () => {
+    const letras = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:";
+    for (let largo = 1; largo <= 61; largo++) {
+      let texto = "";
+      for (let i = 0; i < largo; i++) texto += letras.charAt((i * 7 + largo * 13) % letras.length);
+      expect(matrizQr(texto), `largo ${largo}`).toEqual(matrizDeReferencia(texto));
+    }
+  });
+
+  it("rechaza lo que no puede codificar, en vez de dar un QR incorrecto", () => {
+    expect(() => matrizQr("A".repeat(62))).toThrow("demasiado largo");
+    expect(() => matrizQr("https://tokaloperu.com/q/XK7P2M")).toThrow("solo admite"); // minúsculas
+  });
+});
+
 describe("contenido del QR", () => {
   it("la URL va completa y en mayúsculas", () => {
     expect(urlParaQr("https://tokaloperu.com", "XK7P2M")).toBe("HTTPS://TOKALOPERU.COM/Q/XK7P2M");
@@ -41,8 +77,6 @@ describe("contenido del QR", () => {
     // 38 caracteres es el máximo de versión 2 con corrección M; con L serían 47.
     expect(matrizQr("A".repeat(38))).toHaveLength(25);
     expect(matrizQr("A".repeat(39))).toHaveLength(29);
-    // El mismo texto en minúsculas no puede ir en alfanumérico: sale más grande.
-    expect(matrizQr(url.toLowerCase())).toHaveLength(29);
   });
 
   it("tiene los tres ojos de las esquinas", () => {
