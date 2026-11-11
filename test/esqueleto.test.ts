@@ -2,17 +2,10 @@
 import { createExecutionContext, waitOnExecutionContext } from "cloudflare:test";
 import { env } from "cloudflare:workers";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import worker, { atender, type Enrutador } from "../src/index";
+import { atender, type Enrutador } from "../src/index";
+import { pedir } from "./ayudas";
 
 const BASE = "https://tokaloperu.com";
-
-/** Llama al Worker completo, igual que lo haría Cloudflare. */
-async function pedir(ruta: string, opciones?: RequestInit): Promise<Response> {
-  const ctx = createExecutionContext();
-  const respuesta = await worker.fetch(new Request(BASE + ruta, opciones), env, ctx);
-  await waitOnExecutionContext(ctx);
-  return respuesta;
-}
 
 /** Llama a `atender` con un enrutador que siempre falla. */
 async function pedirConFallo(ruta: string): Promise<Response> {

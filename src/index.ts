@@ -1,9 +1,11 @@
 // Entrada del Worker. Cloudflare llama a `fetch` una vez por cada solicitud.
 //
 // Este archivo hace dos cosas:
-//   1. `enrutar`: decide qué responder según la ruta.
+//   1. `enrutar`: decide qué función responde según la ruta.
 //   2. `atender`: red de seguridad. Si `enrutar` lanza una excepción, la
 //      registra y responde algo razonable. El público nunca ve un error 500.
+import { paginaDeRespaldo, redirigir } from "./lib/respuestas";
+import { escaneo, icono, paginaLanding, robots } from "./rutas/publico";
 
 /** Firma de un enrutador: recibe la solicitud y devuelve la respuesta. */
 export type Enrutador = (
@@ -12,48 +14,30 @@ export type Enrutador = (
   ctx: ExecutionContext,
 ) => Promise<Response>;
 
-/** Redirección temporal (302). `no-store` evita que el navegador la recuerde. */
-export function redirigir(destino: string): Response {
-  return new Response(null, {
-    status: 302,
-    headers: { Location: destino, "Cache-Control": "no-store" },
-  });
-}
+// /n/CODIGO o /q/CODIGO. La "i" final acepta también /N/ y /Q/, porque el
+// QR lleva la URL entera en mayúsculas.
+const RUTA_ESCANEO = /^\/([nq])\/([^/]+)\/?$/i;
 
-/** Página fija de respaldo: se usa solo si falla la propia landing ("/"). */
-export function paginaDeRespaldo(): Response {
-  const html = `<!doctype html>
-<html lang="es">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Tokalo</title>
-</head>
-<body>
-<h1>Tokalo</h1>
-<p>Vuelve a intentarlo en un momento.</p>
-</body>
-</html>`;
-  return new Response(html, {
-    status: 200,
-    headers: {
-      "Content-Type": "text/html; charset=utf-8",
-      "Cache-Control": "no-store",
-    },
-  });
-}
-
-/** Rutas del sitio. Por ahora solo existe la landing provisional. */
-export const enrutar: Enrutador = async (solicitud) => {
+/** Rutas del sitio. */
+export const enrutar: Enrutador = async (solicitud, env) => {
   const ruta = new URL(solicitud.url).pathname;
 
-  if (ruta === "/") {
-    return new Response("Tokalo", {
-      headers: { "Content-Type": "text/plain; charset=utf-8" },
-    });
+  // Todas las rutas públicas son de solo lectura.
+  // (HEAD es un GET sin cuerpo; lo usan algunos navegadores y bots.)
+  if (solicitud.method === "GET" || solicitud.method === "HEAD") {
+    if (ruta === "/") return paginaLanding(env);
+
+    const coincide = RUTA_ESCANEO.exec(ruta);
+    if (coincide !== null) {
+      // coincide[1] es el canal (n o q); se usará para las estadísticas.
+      return escaneo(env, coincide[2] ?? "");
+    }
+
+    if (ruta === "/favicon.ico") return icono();
+    if (ruta === "/robots.txt") return robots();
   }
 
-  // Cualquier ruta desconocida vuelve a la landing.
+  // Cualquier otra cosa vuelve a la landing.
   return redirigir("/");
 };
 

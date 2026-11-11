@@ -3,21 +3,9 @@ import { env } from "cloudflare:workers";
 import { beforeEach, describe, expect, it } from "vitest";
 // "?raw" importa el archivo como texto, sin interpretarlo.
 import datosDePrueba from "../datos/prueba.sql?raw";
-import { ejecutarSql, vaciarBase } from "./ayudas";
+import { crearLoteBase, ejecutarSql, vaciarBase } from "./ayudas";
 
 beforeEach(vaciarBase);
-
-/** Crea lo mínimo para poder insertar placas: un usuario y un lote. */
-async function crearLoteBase(): Promise<void> {
-  await env.DB.batch([
-    env.DB.prepare(
-      "INSERT INTO usuarios (id, nombre, usuario, hash_clave, creado_en) VALUES (1, 'Test', 'test', '!', '2026-11-11T00:00:00Z')",
-    ),
-    env.DB.prepare(
-      "INSERT INTO lotes (id, modelo, cantidad, creado_por, creado_en) VALUES (1, 'D', 1, 1, '2026-11-11T00:00:00Z')",
-    ),
-  ]);
-}
 
 const INSERTAR_PLACA =
   "INSERT INTO placas (codigo, modelo, lote, estado, creada_en) VALUES (?, ?, ?, ?, '2026-11-11T00:00:00Z')";
