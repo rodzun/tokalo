@@ -54,6 +54,19 @@ Links de Maps compartidos desde iPhone (maps.app.goo.gl/...?g_st=ic): el primer 
 - Migraciones que recrean una tabla referenciada por otras: probarlas antes en una base
   local CON datos (`wrangler d1 ... --local`). Los tests solo migran bases vacías.
 
+## QR (etapa 8)
+
+- Codificador propio en `src/lib/qr.ts`: modo alfanumérico, corrección M, tamaños 1 a 3
+  (hasta 61 caracteres). Cero dependencias de producción.
+- `qrcode-generator` queda solo como devDependency: los tests comparan cuadro por cuadro
+  nuestro QR con el suyo. No usarla en producción: gastaba prom. 10,4 ms de CPU (máx. 33).
+- CPU medido en desarrollo (30 solicitudes, QR de 29x29): prom. 3,4 ms, p50 3, máx. 10
+  (la primera tras desplegar). En producción el QR es de 25x25, algo más barato.
+- Lección: en Workers el código casi siempre corre "en frío" (sin optimizar por el motor).
+  Los bucles pesados cuestan 5 a 10 veces más que en una prueba local repetida; medir
+  siempre desplegado, no en local.
+- Un QR por solicitud (`/admin/placas/CODIGO/qr.svg`); no hay descarga masiva.
+
 ## Admin: presentación de datos
 
 - En la base las fechas van en UTC; en el admin se muestran en hora de Perú (UTC-5).

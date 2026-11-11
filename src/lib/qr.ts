@@ -7,7 +7,7 @@
 //
 // ¿Por qué no una librería? La que se probó (qrcode-generator) gastaba de
 // 3 a 33 ms de CPU por QR, y el plan gratuito de Cloudflare da 10 ms. Esta
-// versión tarda menos de 1 ms. Esa librería se conserva solo para los
+// versión hace mucho menos trabajo (medición en CLAUDE.md). Esa librería se conserva solo para los
 // tests, que comprueban que este archivo produce exactamente el mismo QR.
 
 /**
@@ -121,22 +121,14 @@ function bytesDeCorreccion(datos: readonly number[], cantidad: number): number[]
 }
 
 // ───────────────────────── 3. Cuadrícula ─────────────────────────
-// La cuadrícula es una lista plana de lado x lado valores:
-//   VACIO = todavía sin decidir, 0 = blanco, 1 = negro.
-
-const VACIO = 2;
-
-/** Las 8 "máscaras" del estándar: patrones que invierten cuadros para evitar zonas uniformes. */
-const MASCARAS: ReadonlyArray<(f: number, c: number) => boolean> = [
-  (f, c) => (f + c) % 2 === 0,
-  (f) => f % 2 === 0,
-  (_f, c) => c % 3 === 0,
-  (f, c) => (f + c) % 3 === 0,
-  (f, c) => (Math.floor(f / 2) + Math.floor(c / 3)) % 2 === 0,
-  (f, c) => ((f * c) % 2) + ((f * c) % 3) === 0,
-  (f, c) => (((f * c) % 2) + ((f * c) % 3)) % 2 === 0,
-  (f, c) => (((f * c) % 3) + ((f + c) % 2)) % 2 === 0,
-];
+// La cuadrícula es una lista plana de lado x lado valores (0 = blanco,
+// 1 = negro); el cuadro de la fila f y columna c está en la posición
+// f * lado + c.
+//
+// Este bloque está escrito pensando en la velocidad: Cloudflare ejecuta el
+// código "en frío" (sin optimizar) casi siempre que se pide un QR, así que
+// cada operación ahorrada cuenta. Por eso se usan listas de números
+// (Uint8Array) y bucles simples en vez de funciones pequeñas.
 
 /** Los 15 bits de "formato": dicen al lector qué corrección y qué máscara se usó. */
 function bitsDeFormato(mascara: number): number {
@@ -148,21 +140,30 @@ function bitsDeFormato(mascara: number): number {
   return ((mascara << 10) | resto) ^ 0x5412;
 }
 
-/**
- * Arma la cuadrícula completa con una máscara.
- * `deVerdad = false` deja en blanco los bits de formato: así se comparan
- * las máscaras entre sí antes de elegir una.
- */
-function armar(
-  lado: number,
-  alineacion: number,
-  bytes: readonly number[],
-  mascara: number,
-  deVerdad: boolean,
-): Uint8Array {
-  const m = new Uint8Array(lado * lado).fill(VACIO);
+/** Lo que no depende del texto: se calcula una vez por tamaño de QR. */
+interface Plantilla {
+  lado: number;
+  /** Cuadrícula con las partes fijas dibujadas y el resto en blanco. */
+  base: Uint8Array;
+  /** Posiciones de los cuadros de datos, en el orden en que se llenan. */
+  celdas: Uint16Array;
+  /** Fila y columna de cada cuadro de datos (para aplicar la máscara). */
+  filas: Uint8Array;
+  columnas: Uint8Array;
+}
+
+const plantillas: Array<Plantilla | undefined> = [];
+
+function plantillaDe(indice: number, alineacion: number): Plantilla {
+  const guardada = plantillas[indice];
+  if (guardada !== undefined) return guardada;
+
+  const lado = 17 + 4 * (indice + 1); // 21, 25 o 29 cuadros
+  const base = new Uint8Array(lado * lado);
+  const ocupado = new Uint8Array(lado * lado); // 1 = parte fija, no lleva datos
   const poner = (f: number, c: number, negro: boolean): void => {
-    m[f * lado + c] = negro ? 1 : 0;
+    base[f * lado + c] = negro ? 1 : 0;
+    ocupado[f * lado + c] = 1;
   };
 
   // Los tres "ojos" de las esquinas (7x7) con su borde blanco alrededor.
@@ -192,32 +193,24 @@ function armar(
     poner(6, i, i % 2 === 0);
   }
 
-  // Bits de formato, repetidos en dos sitios, y el cuadro siempre negro.
-  const formato = bitsDeFormato(mascara);
+  // Sitio de los bits de formato (dos copias) y del cuadro siempre negro.
+  // Aquí quedan en blanco; se pintan al final, cuando ya se eligió máscara.
   for (let i = 0; i < 15; i++) {
-    const negro = deVerdad && ((formato >>> i) & 1) === 1;
-    poner(i < 6 ? i : i < 8 ? i + 1 : lado - 15 + i, 8, negro); // vertical
-    poner(8, i < 8 ? lado - i - 1 : i < 9 ? 7 : 14 - i, negro); // horizontal
+    poner(i < 6 ? i : i < 8 ? i + 1 : lado - 15 + i, 8, false);
+    poner(8, i < 8 ? lado - i - 1 : i < 9 ? 7 : 14 - i, false);
   }
-  poner(lado - 8, 8, deVerdad);
+  poner(lado - 8, 8, false);
 
-  // Datos: se recorren las columnas de dos en dos, de derecha a izquierda,
-  // subiendo y bajando en zigzag, y se llenan los cuadros aún vacíos.
-  const enmascarar = MASCARAS[mascara] ?? (() => false);
+  // Orden de los datos: columnas de dos en dos, de derecha a izquierda,
+  // subiendo y bajando en zigzag, saltando los cuadros ocupados.
+  const orden: number[] = [];
   let direccion = -1;
   let fila = lado - 1;
-  let bit = 0;
   for (let col = lado - 1; col > 0; col -= 2) {
     if (col === 6) col--; // la columna 6 es la línea de sincronía
     for (;;) {
       for (let k = 0; k < 2; k++) {
-        const c = col - k;
-        if (m[fila * lado + c] !== VACIO) continue;
-        const byte = bytes[bit >>> 3];
-        let negro = byte !== undefined && ((byte >>> (7 - (bit & 7))) & 1) === 1;
-        if (enmascarar(fila, c)) negro = !negro;
-        poner(fila, c, negro);
-        bit++;
+        if (ocupado[fila * lado + col - k] === 0) orden.push(fila * lado + col - k);
       }
       fila += direccion;
       if (fila < 0 || fila >= lado) {
@@ -227,37 +220,85 @@ function armar(
       }
     }
   }
-  return m;
+
+  const nueva: Plantilla = {
+    lado,
+    base,
+    celdas: Uint16Array.from(orden),
+    filas: Uint8Array.from(orden, (posicion) => Math.floor(posicion / lado)),
+    columnas: Uint8Array.from(orden, (posicion) => posicion % lado),
+  };
+  plantillas[indice] = nueva;
+  return nueva;
+}
+
+/**
+ * Escribe los datos en la cuadrícula `g` aplicando una de las 8 máscaras
+ * del estándar: patrones que invierten ciertos cuadros para que no queden
+ * zonas uniformes. `bits` trae un 0 o un 1 por cada cuadro de datos.
+ */
+function ponerDatos(g: Uint8Array, p: Plantilla, bits: Uint8Array, mascara: number): void {
+  const { celdas, filas, columnas } = p;
+  for (let i = 0; i < celdas.length; i++) {
+    const f = filas[i] as number;
+    const c = columnas[i] as number;
+    let invertir: boolean;
+    switch (mascara) {
+      case 0: invertir = (f + c) % 2 === 0; break;
+      case 1: invertir = f % 2 === 0; break;
+      case 2: invertir = c % 3 === 0; break;
+      case 3: invertir = (f + c) % 3 === 0; break;
+      case 4: invertir = ((f >> 1) + Math.floor(c / 3)) % 2 === 0; break;
+      case 5: invertir = ((f * c) % 2) + ((f * c) % 3) === 0; break;
+      case 6: invertir = (((f * c) % 2) + ((f * c) % 3)) % 2 === 0; break;
+      default: invertir = (((f * c) % 3) + ((f + c) % 2)) % 2 === 0;
+    }
+    g[celdas[i] as number] = invertir ? (bits[i] as number) ^ 1 : (bits[i] as number);
+  }
 }
 
 /**
  * Puntos de penalización de una cuadrícula: cuanto más bajo, más fácil de
- * leer. Mismas cuatro reglas que qrcode-generator, para elegir la misma máscara.
+ * leer. Son las cuatro reglas de qrcode-generator, para elegir siempre la
+ * misma máscara que esa librería. `sumas` es espacio de trabajo reutilizable.
  */
-function penalizacion(m: Uint8Array, lado: number): number {
-  const en = (f: number, c: number): number => m[f * lado + c] ?? 0;
+function penalizacion(g: Uint8Array, lado: number, sumas: Uint8Array): number {
   let puntos = 0;
+  let negros = 0;
+  const ultimo = lado - 1;
 
-  // Regla 1: cuadros rodeados de muchos vecinos de su mismo color.
+  // Paso previo: para cada cuadro, cuántos negros hay entre él y sus dos
+  // vecinos de la misma fila. Con eso, la regla 1 necesita 3 lecturas por
+  // cuadro en vez de 8.
   for (let f = 0; f < lado; f++) {
+    const inicio = f * lado;
     for (let c = 0; c < lado; c++) {
-      const color = en(f, c);
-      let iguales = 0;
-      for (let df = -1; df <= 1; df++) {
-        if (f + df < 0 || f + df >= lado) continue;
-        for (let dc = -1; dc <= 1; dc++) {
-          if (c + dc < 0 || c + dc >= lado || (df === 0 && dc === 0)) continue;
-          if (en(f + df, c + dc) === color) iguales++;
-        }
-      }
-      if (iguales > 5) puntos += 3 + iguales - 5;
+      const i = inicio + c;
+      const valor = g[i] as number;
+      negros += valor;
+      sumas[i] = valor + (c > 0 ? (g[i - 1] as number) : 0) + (c < ultimo ? (g[i + 1] as number) : 0);
+    }
+  }
+
+  // Regla 1: cuadros con más de 5 vecinos (de los 8 que lo rodean) de su mismo color.
+  for (let f = 0; f < lado; f++) {
+    const alto = f > 0 && f < ultimo ? 3 : 2; // filas que abarca la vecindad
+    for (let c = 0; c < lado; c++) {
+      const i = f * lado + c;
+      // Negros en el bloque de 3x3 centrado en el cuadro (recortado en los bordes).
+      const negrosCerca =
+        (sumas[i] as number) + (f > 0 ? (sumas[i - lado] as number) : 0) + (f < ultimo ? (sumas[i + lado] as number) : 0);
+      const vecinos = alto * (c > 0 && c < ultimo ? 3 : 2) - 1;
+      const iguales = g[i] === 1 ? negrosCerca - 1 : vecinos - negrosCerca;
+      if (iguales > 5) puntos += iguales - 2;
     }
   }
 
   // Regla 2: bloques de 2x2 de un solo color.
-  for (let f = 0; f < lado - 1; f++) {
-    for (let c = 0; c < lado - 1; c++) {
-      const suma = en(f, c) + en(f + 1, c) + en(f, c + 1) + en(f + 1, c + 1);
+  for (let f = 0; f < ultimo; f++) {
+    for (let c = 0; c < ultimo; c++) {
+      const i = f * lado + c;
+      const suma = (g[i] as number) + (g[i + 1] as number) + (g[i + lado] as number) + (g[i + lado + 1] as number);
       if (suma === 0 || suma === 4) puntos += 3;
     }
   }
@@ -266,29 +307,28 @@ function penalizacion(m: Uint8Array, lado: number): number {
   // se parecen a un "ojo" y confunden al lector. En filas y en columnas.
   for (let a = 0; a < lado; a++) {
     for (let b = 0; b < lado - 6; b++) {
-      if (en(a, b) && !en(a, b + 1) && en(a, b + 2) && en(a, b + 3) && en(a, b + 4) && !en(a, b + 5) && en(a, b + 6)) {
+      let i = a * lado + b; // en la fila a, empezando en la columna b
+      if (g[i] === 1 && g[i + 1] === 0 && g[i + 2] === 1 && g[i + 3] === 1 && g[i + 4] === 1 && g[i + 5] === 0 && g[i + 6] === 1) {
         puntos += 40;
       }
-      if (en(b, a) && !en(b + 1, a) && en(b + 2, a) && en(b + 3, a) && en(b + 4, a) && !en(b + 5, a) && en(b + 6, a)) {
+      i = b * lado + a; // en la columna a, empezando en la fila b
+      if (
+        g[i] === 1 && g[i + lado] === 0 && g[i + 2 * lado] === 1 && g[i + 3 * lado] === 1 &&
+        g[i + 4 * lado] === 1 && g[i + 5 * lado] === 0 && g[i + 6 * lado] === 1
+      ) {
         puntos += 40;
       }
     }
   }
 
   // Regla 4: que la proporción de negros se aleje del 50 %.
-  let negros = 0;
-  for (const valor of m) negros += valor;
   puntos += (Math.abs((100 * negros) / lado / lado - 50) / 5) * 10;
 
   return puntos;
 }
 
-/**
- * Calcula el QR de un texto. Devuelve la cuadrícula como lista de filas;
- * true = cuadro negro. Lanza un error si el texto no cabe o tiene
- * caracteres fuera del modo alfanumérico.
- */
-export function matrizQr(texto: string): boolean[][] {
+/** Calcula la cuadrícula final de un texto. Devuelve la lista plana y su lado. */
+function cuadricula(texto: string): { g: Uint8Array; lado: number } {
   for (const caracter of texto) {
     if (!ALFANUMERICO.includes(caracter)) {
       throw new Error(`El QR solo admite mayúsculas, dígitos y $%*+-./: (sobra "${caracter}")`);
@@ -298,27 +338,58 @@ export function matrizQr(texto: string): boolean[][] {
   const indice = VERSIONES.findIndex((v) => bitsNecesarios(texto.length) <= v.datos * 8);
   const version = VERSIONES[indice];
   if (version === undefined) throw new Error("Texto demasiado largo para el QR (máximo 61 caracteres)");
-  const lado = 17 + 4 * (indice + 1); // 21, 25 o 29 cuadros
 
+  const p = plantillaDe(indice, version.alineacion);
+  const { lado } = p;
+
+  // Bytes finales (datos + corrección) convertidos a un bit por cuadro.
+  // Los cuadros que sobran al final quedan en 0, como pide el estándar.
   const datos = bytesDeDatos(texto, version.datos);
   const bytes = [...datos, ...bytesDeCorreccion(datos, version.ec)];
+  const bits = new Uint8Array(p.celdas.length);
+  for (let i = 0; i < bytes.length * 8; i++) {
+    bits[i] = ((bytes[i >>> 3] as number) >>> (7 - (i & 7))) & 1;
+  }
 
   // Se prueban las 8 máscaras y se queda la de menor penalización.
+  const g = new Uint8Array(p.base); // copia de las partes fijas
+  const sumas = new Uint8Array(lado * lado);
   let mejor = 0;
   let minimo = Infinity;
   for (let mascara = 0; mascara < 8; mascara++) {
-    const puntos = penalizacion(armar(lado, version.alineacion, bytes, mascara, false), lado);
+    ponerDatos(g, p, bits, mascara);
+    const puntos = penalizacion(g, lado, sumas);
     if (puntos < minimo) {
       minimo = puntos;
       mejor = mascara;
     }
   }
 
-  const final = armar(lado, version.alineacion, bytes, mejor, true);
+  // Cuadrícula definitiva: datos con la máscara elegida, bits de formato
+  // (repetidos en dos sitios) y el cuadro que siempre es negro.
+  ponerDatos(g, p, bits, mejor);
+  const formato = bitsDeFormato(mejor);
+  for (let i = 0; i < 15; i++) {
+    const bit = (formato >>> i) & 1;
+    g[(i < 6 ? i : i < 8 ? i + 1 : lado - 15 + i) * lado + 8] = bit; // vertical
+    g[8 * lado + (i < 8 ? lado - i - 1 : i < 9 ? 7 : 14 - i)] = bit; // horizontal
+  }
+  g[(lado - 8) * lado + 8] = 1;
+
+  return { g, lado };
+}
+
+/**
+ * Calcula el QR de un texto como lista de filas; true = cuadro negro.
+ * Lanza un error si el texto no cabe o tiene caracteres fuera del modo
+ * alfanumérico. (La usan los tests; el SVG trabaja con la lista plana.)
+ */
+export function matrizQr(texto: string): boolean[][] {
+  const { g, lado } = cuadricula(texto);
   const filas: boolean[][] = [];
   for (let f = 0; f < lado; f++) {
     const fila: boolean[] = [];
-    for (let c = 0; c < lado; c++) fila.push(final[f * lado + c] === 1);
+    for (let c = 0; c < lado; c++) fila.push(g[f * lado + c] === 1);
     filas.push(fila);
   }
   return filas;
@@ -335,28 +406,28 @@ const MARGEN = 4;
  * Cada unidad del dibujo es un cuadro del QR.
  */
 export function qrSvg(texto: string): string {
-  const matriz = matrizQr(texto);
-  const lado = matriz.length + 2 * MARGEN;
+  const { g, lado } = cuadricula(texto);
+  const total = lado + 2 * MARGEN;
 
   // Un rectángulo por cada tramo horizontal de cuadros negros seguidos.
   // "M x y" mueve el lápiz; "h" y "v" trazan líneas; "z" cierra la figura.
   let trazo = "";
-  matriz.forEach((fila, f) => {
+  for (let f = 0; f < lado; f++) {
     let c = 0;
-    while (c < fila.length) {
-      if (fila[c] !== true) {
+    while (c < lado) {
+      if (g[f * lado + c] !== 1) {
         c++;
         continue;
       }
       const inicio = c;
-      while (c < fila.length && fila[c] === true) c++;
+      while (c < lado && g[f * lado + c] === 1) c++;
       trazo += `M${inicio + MARGEN} ${f + MARGEN}h${c - inicio}v1h-${c - inicio}z`;
     }
-  });
+  }
 
   return (
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${lado} ${lado}" shape-rendering="crispEdges">` +
-    `<rect width="${lado}" height="${lado}" fill="#fff"/>` +
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${total} ${total}" shape-rendering="crispEdges">` +
+    `<rect width="${total}" height="${total}" fill="#fff"/>` +
     `<path d="${trazo}" fill="#000"/></svg>`
   );
 }
