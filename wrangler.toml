@@ -12,6 +12,8 @@ workers_dev = true
 # Valores de configuración que el Worker lee como `env.NOMBRE`.
 [vars]
 WHATSAPP = "51913629134"   # código de país + número, solo dígitos
+# Dirección pública de este entorno: con ella se arman los links de las placas.
+URL_BASE = "https://tokalo-dev.tokaloperu.workers.dev"
 
 # Logs del Worker: guarda cada solicitud y cada console.error. Se ven en el
 # panel de Cloudflare: Workers & Pages > tokalo-dev > Observability.
@@ -46,6 +48,7 @@ routes = [
 
 [env.produccion.vars]
 WHATSAPP = "51913629134"
+URL_BASE = "https://tokaloperu.com"
 
 [env.produccion.observability.logs]
 enabled = true

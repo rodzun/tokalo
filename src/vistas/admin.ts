@@ -1,6 +1,20 @@
 // Páginas del admin. Cada función devuelve el HTML completo de una pantalla.
 import { escapar, pagina } from "../lib/html";
 
+/** Menú que encabeza las páginas del admin. */
+const MENU = `<nav><a href="/admin">Inicio</a><a href="/admin/lotes">Lotes</a><a href="/admin/modelos">Modelos</a></nav>`;
+
+/** Página del admin: con menú y alineada a la izquierda. */
+export function paginaAdmin(titulo: string, contenido: string): string {
+  return pagina(`${titulo} · Tokalo`, MENU + contenido, "admin");
+}
+
+/** Mensaje de resultado: verde si salió bien, rojo si es un error. */
+export function mensaje(texto: string | undefined, esError = false): string {
+  if (texto === undefined) return "";
+  return `<p class="${esError ? "aviso" : "ok"}">${escapar(texto)}</p>`;
+}
+
 /** Formulario de login. `aviso` es el mensaje de error, si lo hay. */
 export function vistaLogin(aviso?: string): string {
   return pagina(
@@ -24,8 +38,8 @@ const BOTON_SALIR = `<form method="post" action="/admin/salir">
 
 /** Portada del admin. Provisional: la lista de placas llega más adelante. */
 export function vistaInicio(nombre: string): string {
-  return pagina(
-    "Admin · Tokalo",
+  return paginaAdmin(
+    "Admin",
     `<h2>Hola, ${escapar(nombre)}</h2>
 <p>Sesión iniciada. Acerca el celular a una placa para activarla o ver su ficha.</p>
 ${BOTON_SALIR}`,
@@ -39,21 +53,31 @@ export function vistaPlacaProvisional(codigo: string, estado: string): string {
     activa: "Activa. Aquí irá la ficha de la placa.",
     desactivada: "Desactivada. Aquí irá la ficha, con el botón para reactivarla.",
   };
-  return pagina(
-    `Placa ${codigo} · Tokalo`,
+  return paginaAdmin(
+    `Placa ${codigo}`,
     `<h2>Placa</h2>
 <p class="dato">${escapar(codigo)}</p>
-<p>${escapar(textos[estado] ?? estado)}</p>
-<p><a href="/admin">Volver al inicio</a></p>`,
+<p>${escapar(textos[estado] ?? estado)}</p>`,
   );
 }
 
 /** Aviso genérico dentro del admin (por ejemplo, placa que no existe). */
-export function vistaAviso(titulo: string, mensaje: string): string {
-  return pagina(
-    `${titulo} · Tokalo`,
+export function vistaAviso(titulo: string, texto: string): string {
+  return paginaAdmin(titulo, `<h2>${escapar(titulo)}</h2>\n<p>${escapar(texto)}</p>`);
+}
+
+/**
+ * Pantalla de confirmación antes de eliminar algo.
+ * `accion` es la ruta a la que se envía el formulario si se confirma.
+ */
+export function vistaConfirmar(titulo: string, texto: string, accion: string, volver: string): string {
+  return paginaAdmin(
+    titulo,
     `<h2>${escapar(titulo)}</h2>
-<p>${escapar(mensaje)}</p>
-<p><a href="/admin">Volver al inicio</a></p>`,
+<p>${escapar(texto)}</p>
+<form method="post" action="${escapar(accion)}">
+<button class="peligro">Sí, eliminar</button>
+</form>
+<p style="margin-top:1rem"><a href="${escapar(volver)}">No, volver</a></p>`,
   );
 }

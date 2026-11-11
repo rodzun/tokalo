@@ -75,3 +75,16 @@ export async function crearUsuario(usuario: string, clave: string, activo = true
 export async function cabecerasConSesion(idUsuario: number, vence?: number): Promise<Record<string, string>> {
   return { Cookie: `${NOMBRE_COOKIE}=${await valorDeSesion(env, idUsuario, vence)}` };
 }
+
+/** Envía un formulario por POST con sesión iniciada, como lo haría el navegador. */
+export async function enviar(ruta: string, campos: Record<string, string>, idUsuario: number): Promise<Response> {
+  return pedir(ruta, {
+    method: "POST",
+    headers: {
+      ...(await cabecerasConSesion(idUsuario)),
+      "Content-Type": "application/x-www-form-urlencoded",
+      Origin: BASE,
+    },
+    body: new URLSearchParams(campos).toString(),
+  });
+}
