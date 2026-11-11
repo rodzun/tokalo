@@ -8,6 +8,10 @@ main = "src/index.ts"
 compatibility_date = "2026-11-10"
 workers_dev = true
 
+# Valores de configuración que el Worker lee como `env.NOMBRE`.
+[vars]
+WHATSAPP = "51913629134"   # código de país + número, solo dígitos
+
 # Logs del Worker: guarda cada solicitud y cada console.error. Se ven en el
 # panel de Cloudflare: Workers & Pages > tokalo-dev > Observability.
 # Gratis hasta 200 000 eventos al día. Las trazas no nos hacen falta.
