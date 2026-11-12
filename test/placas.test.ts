@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { crearLote } from "../src/lib/lotes";
 import { activarPlaca, cambiarDestino, listarPlacas } from "../src/lib/placas";
 import { destinoCoincide } from "../src/lib/plataformas";
-import { cabecerasConSesion, crearUsuario, enviar, pedir, vaciarBase } from "./ayudas";
+import { cabecerasConSesion, crearUsuario, enviar, escanear, pedir, vaciarBase } from "./ayudas";
 
 const GOOGLE_1 = "https://search.google.com/local/writereview?placeid=ChIJd47f2fnXbZERrQZbyDhq2y0";
 const GOOGLE_2 = "https://search.google.com/local/writereview?placeid=ChIJxYp2YMnVbZERVR0Z22bHb4s";
@@ -26,13 +26,11 @@ async function crearPlaca(codigo: string, modelo: string, destino?: string, nego
   }
 }
 
-/** Inserta escaneos directamente: `dias` es hace cuántos días ocurrió cada uno. */
+/** Registra escaneos con fecha elegida: `dias` es hace cuántos días ocurrió cada uno. */
 async function escaneos(codigo: string, canal: "n" | "q", dias: number[]): Promise<void> {
   for (const d of dias) {
     const fecha = new Date(Date.now() - d * 86_400_000).toISOString().slice(0, 19) + "Z";
-    await env.DB.prepare("INSERT INTO escaneos (codigo, canal, fecha, pais, sistema) VALUES (?, ?, ?, 'PE', 'ios')")
-      .bind(codigo, canal, fecha)
-      .run();
+    await escanear(codigo, canal, fecha);
   }
 }
 

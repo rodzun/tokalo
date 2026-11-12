@@ -2,7 +2,7 @@
 //
 // Qué se guarda: placa, canal, fecha UTC, país y sistema operativo.
 // Qué NO se guarda: IP ni user-agent (del user-agent solo sale el sistema).
-import { ahoraUtc } from "./fechas";
+import { ahoraUtc, diaEnPeru } from "./fechas";
 
 /** Canal por el que llegó la persona: "n" = chip NFC, "q" = código QR. */
 export type Canal = "n" | "q";
@@ -68,7 +68,40 @@ function paisDe(solicitud: Request): string | null {
 }
 
 /**
- * Guarda un escaneo en la base.
+ * Las tres sentencias que registran un escaneo:
+ *   1. el escaneo en sí (detalle: país y sistema);
+ *   2. +1 en el resumen del día de Perú, para esa placa y canal;
+ *   3. +1 en el total de siempre, para esa placa y canal.
+ * Se ejecutan juntas con `db.batch`, que es una transacción: o se guardan
+ * las tres o ninguna. Por eso el resumen nunca se desfasa de los escaneos.
+ *
+ * "ON CONFLICT ... DO UPDATE": si la fila del resumen ya existe, le suma 1;
+ * si no existe, la crea con 1.
+ */
+export function sentenciasDeEscaneo(
+  db: D1Database,
+  codigo: string,
+  canal: Canal,
+  fechaUtc: string,
+  pais: string | null,
+  sistema: Sistema,
+): D1PreparedStatement[] {
+  return [
+    db.prepare("INSERT INTO escaneos (codigo, canal, fecha, pais, sistema) VALUES (?, ?, ?, ?, ?)")
+      .bind(codigo, canal, fechaUtc, pais, sistema),
+    db.prepare(
+      `INSERT INTO escaneos_diarios (codigo, dia, canal, cantidad) VALUES (?, ?, ?, 1)
+       ON CONFLICT (codigo, dia, canal) DO UPDATE SET cantidad = cantidad + 1`,
+    ).bind(codigo, diaEnPeru(fechaUtc), canal),
+    db.prepare(
+      `INSERT INTO escaneos_totales (codigo, canal, cantidad) VALUES (?, ?, 1)
+       ON CONFLICT (codigo, canal) DO UPDATE SET cantidad = cantidad + 1`,
+    ).bind(codigo, canal),
+  ];
+}
+
+/**
+ * Guarda un escaneo en la base y lo suma a los resúmenes.
  * Es `async` a propósito: cualquier fallo sale como promesa rechazada, que
  * quien la llama puede ignorar sin que afecte a la redirección.
  */
@@ -78,8 +111,7 @@ export async function registrarEscaneo(
   canal: Canal,
   solicitud: Request,
 ): Promise<void> {
-  await db
-    .prepare("INSERT INTO escaneos (codigo, canal, fecha, pais, sistema) VALUES (?, ?, ?, ?, ?)")
-    .bind(codigo, canal, ahoraUtc(), paisDe(solicitud), sistemaDe(solicitud.headers.get("User-Agent")))
-    .run();
+  await db.batch(
+    sentenciasDeEscaneo(db, codigo, canal, ahoraUtc(), paisDe(solicitud), sistemaDe(solicitud.headers.get("User-Agent"))),
+  );
 }

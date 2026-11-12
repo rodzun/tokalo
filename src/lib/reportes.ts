@@ -8,11 +8,17 @@ import { aPlataforma } from "./plataformas";
 export interface Rango {
   desde: string; // "AAAA-MM-DD"
   hasta: string;
+  /** Presente (true) si se pidió un rango más largo que el máximo y se acortó. */
+  recortado?: true;
 }
+
+/** Rango máximo de un reporte, en días. Pone techo a las filas que lee de la base. */
+export const MAX_DIAS = 366;
 
 /**
  * Lee el rango pedido en la URL (?desde=...&hasta=...). Si falta o es
  * inválido, usa los últimos 30 días. Si vienen al revés, los intercambia.
+ * Si abarca más de MAX_DIAS, conserva el final y acorta el inicio.
  */
 export function leerRango(q: URLSearchParams): Rango {
   const hoy = hoyEnPeru();
@@ -21,7 +27,8 @@ export function leerRango(q: URLSearchParams): Rango {
   if (!esDia(hasta)) hasta = hoy;
   if (!esDia(desde)) desde = sumarDias(hasta, -29);
   if (desde > hasta) [desde, hasta] = [hasta, desde];
-  return { desde, hasta };
+  const minimo = sumarDias(hasta, -(MAX_DIAS - 1));
+  return desde < minimo ? { desde: minimo, hasta, recortado: true } : { desde, hasta };
 }
 
 /** Límites del rango en UTC, para comparar con las fechas de la base: [inicio, fin). */
@@ -55,36 +62,59 @@ export interface ReporteDeEscaneos {
 export const MAX_FILAS = 200;
 export const MAX_FILAS_CSV = 500;
 
-/** Lecturas por placa en el rango, separadas por canal, de más a menos. */
+/**
+ * Lecturas por placa en el rango, separadas por canal, de más a menos.
+ *
+ * Lee solo el resumen diario (`escaneos_diarios`), en una sola pasada:
+ *   - `suma`: recorre las placas en orden de código y, para cada una, va
+ *     directo a sus filas del rango por la clave primaria (codigo, dia,
+ *     canal). Así lee solo las filas del rango y no necesita ordenar aparte
+ *     para agrupar (ordenar aparte le costaba a D1 el doble de lecturas);
+ *   - `primeras`: las placas con más lecturas, hasta el límite. Las columnas
+ *     "OVER ()" traen en cada fila el total de TODAS las placas de `suma`
+ *     (no solo de las mostradas), así no hace falta una segunda consulta;
+ *   - al final se busca la plataforma solo de las placas mostradas.
+ */
 export async function reporteDeEscaneos(
   db: D1Database,
   rango: Rango,
   plataforma?: string,
   limite = MAX_FILAS,
 ): Promise<ReporteDeEscaneos> {
-  const [inicio, fin] = limitesUtc(rango);
-  const filtro = aPlataforma(plataforma) === undefined ? "" : "AND m.plataforma = ?3";
-  const valores = aPlataforma(plataforma) === undefined ? [inicio, fin] : [inicio, fin, plataforma];
-  const desde = `FROM escaneos e JOIN placas p ON p.codigo = e.codigo JOIN modelos m ON m.id = p.modelo
-                 WHERE e.fecha >= ?1 AND e.fecha < ?2 ${filtro}`;
+  const conFiltro = aPlataforma(plataforma) !== undefined;
+  const filtro = conFiltro ? "WHERE p.modelo IN (SELECT id FROM modelos WHERE plataforma = ?3)" : "";
+  const { results } = await db
+    .prepare(
+      `WITH suma AS (
+         SELECT p.codigo, p.negocio, p.modelo,
+                SUM(CASE WHEN d.canal = 'n' THEN d.cantidad ELSE 0 END) AS nfc,
+                SUM(CASE WHEN d.canal = 'q' THEN d.cantidad ELSE 0 END) AS qr,
+                SUM(d.cantidad) AS total
+         FROM placas p
+         JOIN escaneos_diarios d ON d.codigo = p.codigo AND d.dia >= ?1 AND d.dia <= ?2
+         ${filtro}
+         GROUP BY p.codigo
+       ),
+       primeras AS (
+         SELECT codigo, negocio, modelo, nfc, qr, total,
+                SUM(nfc) OVER () AS t_nfc, SUM(qr) OVER () AS t_qr, COUNT(*) OVER () AS t_placas
+         FROM suma
+         ORDER BY total DESC, codigo LIMIT ${Math.floor(limite)}
+       )
+       SELECT f.codigo, f.negocio, m.plataforma, f.nfc, f.qr, f.total, f.t_nfc, f.t_qr, f.t_placas
+       FROM primeras f JOIN modelos m ON m.id = f.modelo
+       ORDER BY f.total DESC, f.codigo`,
+    )
+    .bind(...(conFiltro ? [rango.desde, rango.hasta, plataforma] : [rango.desde, rango.hasta]))
+    .all<FilaDeEscaneos & { t_nfc: number; t_qr: number; t_placas: number }>();
 
-  // SUM(canal = 'n') cuenta las filas donde la condición es verdadera (vale 1).
-  const [filas, totales] = await db.batch<Record<string, unknown>>([
-    db.prepare(
-      `SELECT e.codigo, p.negocio, m.plataforma,
-              SUM(e.canal = 'n') AS nfc, SUM(e.canal = 'q') AS qr, COUNT(*) AS total
-       ${desde} GROUP BY e.codigo ORDER BY total DESC, e.codigo LIMIT ${Math.floor(limite)}`,
-    ).bind(...valores),
-    db.prepare(
-      `SELECT COALESCE(SUM(e.canal = 'n'), 0) AS nfc, COALESCE(SUM(e.canal = 'q'), 0) AS qr,
-              COUNT(*) AS total, COUNT(DISTINCT e.codigo) AS placas ${desde}`,
-    ).bind(...valores),
-  ]);
-
-  const t = totales?.results[0] ?? {};
+  // Los totales vienen repetidos en cada fila: se toman de la primera.
+  const t = results[0];
+  const nfc = t?.t_nfc ?? 0;
+  const qr = t?.t_qr ?? 0;
   return {
-    filas: (filas?.results ?? []) as unknown as FilaDeEscaneos[],
-    totales: { nfc: Number(t["nfc"] ?? 0), qr: Number(t["qr"] ?? 0), total: Number(t["total"] ?? 0), placas: Number(t["placas"] ?? 0) },
+    filas: results.map((f) => ({ codigo: f.codigo, negocio: f.negocio, plataforma: f.plataforma, nfc: f.nfc, qr: f.qr, total: f.total })),
+    totales: { nfc, qr, total: nfc + qr, placas: t?.t_placas ?? 0 },
   };
 }
 

@@ -2,7 +2,7 @@
 import { env } from "cloudflare:workers";
 import { beforeEach, describe, expect, it } from "vitest";
 import { aCsv, leerRango, reporteDeActivaciones, reporteDeEscaneos } from "../src/lib/reportes";
-import { cabecerasConSesion, crearUsuario, pedir, vaciarBase } from "./ayudas";
+import { cabecerasConSesion, crearUsuario, escanear, pedir, vaciarBase } from "./ayudas";
 
 const DESTINO = "https://search.google.com/local/writereview?placeid=ChIJd47f2fnXbZERrQZbyDhq2y0";
 const NOVIEMBRE = { desde: "2026-11-01", hasta: "2026-11-30" };
@@ -21,9 +21,7 @@ async function placa(codigo: string, modelo: string, negocio: string, activadaEn
 }
 
 async function escaneo(codigo: string, canal: "n" | "q", fecha: string): Promise<void> {
-  await env.DB.prepare("INSERT INTO escaneos (codigo, canal, fecha, pais, sistema) VALUES (?, ?, ?, 'PE', 'ios')")
-    .bind(codigo, canal, fecha)
-    .run();
+  await escanear(codigo, canal, fecha);
 }
 
 async function ver(ruta: string): Promise<Response> {

@@ -22,6 +22,10 @@ El dueño trabaja solo, es backend Python y no sabe frontend.
   primero la migración y, si falla, abortan sin subir el código. Nunca `wrangler deploy`
   suelto ni comandos encadenados con `;`. (El 2026-11-11 una migración falló por el cupo y
   el código nuevo se desplegó igual sobre la base vieja en desarrollo.)
+- Desplegar solo con el árbol de git limpio (todo en un commit), y no editar el proyecto
+  mientras corre algo que despliega. (El 2026-11-12 un script de medición redesplegaba
+  producción mientras se escribía la tabla resumen: la migración 0007 y código a medio
+  hacer llegaron a producción sin permiso.)
 - Toda migración debe ser compatible con el código anterior: añadir columnas o tablas, no
   quitar ni renombrar en el mismo paso. Lo que sobra se elimina en una migración posterior.
 
@@ -170,8 +174,29 @@ Links de Maps compartidos desde iPhone (maps.app.goo.gl/...?g_st=ic): el primer 
   (tabla resumen diaria, o límites en los reportes).
 - `wrangler tail NOMBRE --env X` añade el entorno al nombre: para producción usar
   `npx wrangler tail tokalo` (sin `--env`).
-- Medición de /n y /q en producción con arranques en frío: PENDIENTE. Requiere una placa
-  activa en producción (el 2026-11-11 no había ninguna) y cupo de D1 disponible.
+- Medición de /n y /q en producción con placa activa (2026-11-12, 90 solicitudes, 76
+  capturadas, 5 redespliegues): en frío prom. 2,3 ms de CPU (máx. 3); en caliente prom.
+  0,9 (máx. 4); ninguna sobre 10 ms. La placa, el lote y los escaneos de prueba se borraron.
+
+## Tablas resumen de escaneos (migraciones 0007 y 0008)
+
+- `escaneos_diarios` (placa, día de Perú, canal, cantidad) y `escaneos_totales` (placa,
+  canal, cantidad). Cada escaneo suma 1 en ambas dentro de la misma transacción en que se
+  guarda (`sentenciasDeEscaneo` en `src/lib/escaneos.ts`).
+- El reporte de escaneos y la lista de placas leen SOLO de los resúmenes. `escaneos` queda
+  como detalle (país, sistema). Rango máximo de los reportes: 366 días (`MAX_DIAS`).
+- Filas leídas, medido en local con 550 placas y 40 000 escaneos (21 500 filas diarias):
+  reporte de 4 meses 280 550 -> 24 450; de 30 días 245 550 -> 18 950; lista 15 775 -> 2 885.
+- Filas escritas por escaneo: 5 (antes 3). Bajará a 4 al quitar el índice `escaneos_fecha`,
+  que ya nadie usa: va en una migración posterior, cuando este código esté desplegado.
+- Lección: en D1 un GROUP BY que necesita ordenar aparte ("TEMP B-TREE") cuenta el doble de
+  filas leídas. El reporte recorre `placas` y entra a `escaneos_diarios` por su clave
+  primaria para evitarlo. Revisar con EXPLAIN QUERY PLAN al tocar esa consulta.
+- Tras desplegar, comprobar que `SELECT SUM(cantidad)` de cada resumen es igual a
+  `SELECT COUNT(*) FROM escaneos`. Si no, repetir las sentencias de relleno de la 0008.
+- Estado al 2026-11-12: código en un commit local, SIN desplegar. Producción tiene aplicada
+  la 0007 por error (tablas con datos coherentes, el código desplegado no las usa);
+  desarrollo no tiene ninguna. Pendiente de decisión del dueño.
 
 ## Admin: presentación de datos (pedidos del dueño)
 

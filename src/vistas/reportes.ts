@@ -1,10 +1,11 @@
 // Pantallas de reportes: escaneos por código y canal, y activaciones.
-import { aHoraPeru } from "../lib/fechas";
+import { aHoraPeru, diaLegible } from "../lib/fechas";
 import { escapar } from "../lib/html";
 import { NOMBRE_PLATAFORMA, nombreDePlataforma, PLATAFORMAS } from "../lib/plataformas";
 import {
   type Agrupacion,
   type FiltrosDeActivaciones,
+  MAX_DIAS,
   MAX_FILAS,
   MAX_FILAS_CSV,
   periodoLegible,
@@ -33,7 +34,8 @@ function camposComunes(rango: Rango, plataforma: string): string {
 <div><label for="hasta">Hasta</label><input id="hasta" name="hasta" type="date" value="${escapar(rango.hasta)}"></div>
 </div>
 <label for="plataforma">Plataforma</label>
-<select id="plataforma" name="plataforma">${opcion("", "Todas", plataforma)}${PLATAFORMAS.map((p) => opcion(p, NOMBRE_PLATAFORMA[p], plataforma)).join("")}</select>`;
+<select id="plataforma" name="plataforma">${opcion("", "Todas", plataforma)}${PLATAFORMAS.map((p) => opcion(p, NOMBRE_PLATAFORMA[p], plataforma)).join("")}</select>
+${rango.recortado === true ? `<p class="aviso">El rango máximo es de ${MAX_DIAS} días: se muestra desde el ${escapar(diaLegible(rango.desde))}.</p>` : ""}`;
 }
 
 /** Aviso cuando la tabla llegó al tope de filas. */

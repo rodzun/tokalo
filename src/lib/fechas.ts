@@ -34,6 +34,11 @@ export function hoyEnPeru(): string {
   return new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString().slice(0, 10);
 }
 
+/** Día de Perú al que pertenece un instante UTC: "2026-11-12T03:00:00Z" -> "2026-11-11". */
+export function diaEnPeru(textoUtc: string): string {
+  return new Date(Date.parse(textoUtc) - 5 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
 /** True si el texto es un día válido con formato "AAAA-MM-DD". */
 export function esDia(texto: string): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test(texto) && !Number.isNaN(Date.parse(`${texto}T00:00:00Z`));

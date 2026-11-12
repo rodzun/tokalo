@@ -1,5 +1,5 @@
 // Placas: ficha, activación, cambios y lista.
-import { aTextoUtc, ahoraUtc } from "./fechas";
+import { ahoraUtc, hoyEnPeru, sumarDias } from "./fechas";
 import { esHttps } from "./maps";
 import { aPlataforma, destinoCoincide } from "./plataformas";
 
@@ -199,7 +199,7 @@ export interface PlacaEnLista {
   plataforma: string;
   /** Escaneos de siempre. */
   total: number;
-  /** Escaneos de los últimos 30 días. */
+  /** Escaneos de los últimos 30 días de Perú (hoy incluido). */
   ultimos30: number;
   /** Escaneos por chip NFC (los de QR son total - nfc). */
   nfc: number;
@@ -218,8 +218,11 @@ export interface FiltrosDeLista {
 
 /**
  * Lista de placas según los filtros, de 50 en 50.
- * Los conteos de escaneos se calculan solo para las placas de la página,
- * usando el índice (codigo, fecha): no se recorre toda la tabla de escaneos.
+ *
+ * Primero se eligen las placas de la página (`pagina`) y solo para esas se
+ * buscan el modelo y los conteos. Los conteos salen de las tablas resumen
+ * (`escaneos_totales` y `escaneos_diarios`), nunca de `escaneos`: por placa
+ * se leen como mucho 2 filas de totales y 60 de los últimos 30 días.
  */
 export async function listarPlacas(
   db: D1Database,
@@ -228,14 +231,14 @@ export async function listarPlacas(
   // Se arma el WHERE por partes. Los valores van siempre aparte (en
   // `valores`), nunca pegados dentro del texto SQL.
   const condiciones: string[] = [];
-  const valores: Array<string | number> = [aTextoUtc(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000))];
+  const valores: Array<string | number> = [];
 
   if (ESTADOS.some((e) => e === f.estado)) {
     condiciones.push("p.estado = ?");
     valores.push(f.estado ?? "");
   }
   if (aPlataforma(f.plataforma) !== undefined) {
-    condiciones.push("m.plataforma = ?");
+    condiciones.push("p.modelo IN (SELECT id FROM modelos WHERE plataforma = ?)");
     valores.push(f.plataforma ?? "");
   }
   if (f.busqueda !== undefined && f.busqueda !== "") {
@@ -248,27 +251,39 @@ export async function listarPlacas(
     // Saber si un destino "coincide" lo decide el código (destinoCoincide),
     // no SQL: se leen los destinos, se filtran aquí y se pasa la lista de
     // códigos a la consulta. Tope de 200 para no cargar la página.
-    const { results } = await db
-      .prepare("SELECT p.codigo, p.destino, m.plataforma FROM placas p JOIN modelos m ON m.id = p.modelo WHERE p.destino IS NOT NULL")
-      .all<{ codigo: string; destino: string; plataforma: string }>();
-    const codigos = results.filter((r) => !destinoCoincide(r.plataforma, r.destino)).map((r) => r.codigo);
+    const [destinos, modelos] = await db.batch<Record<string, string>>([
+      db.prepare("SELECT codigo, destino, modelo FROM placas WHERE destino IS NOT NULL"),
+      db.prepare("SELECT id, plataforma FROM modelos"),
+    ]);
+    const plataformaDe = new Map((modelos?.results ?? []).map((m) => [m["id"], m["plataforma"] ?? ""]));
+    const codigos = (destinos?.results ?? [])
+      .filter((r) => !destinoCoincide(plataformaDe.get(r["modelo"]) ?? "", r["destino"] ?? ""))
+      .map((r) => r["codigo"]);
     condiciones.push("p.codigo IN (SELECT value FROM json_each(?))");
     valores.push(JSON.stringify(codigos.slice(0, 200)));
   }
 
   const pagina = Math.max(1, Math.floor(f.pagina));
   valores.push(POR_PAGINA + 1, (pagina - 1) * POR_PAGINA); // una de más, para saber si hay otra página
+  // "Últimos 30 días": hoy y los 29 días anteriores, en días de Perú.
+  valores.push(sumarDias(hoyEnPeru(), -29));
 
+  const orden = "activada_en IS NULL, activada_en DESC, creada_en DESC, codigo";
   const { results } = await db
     .prepare(
-      `SELECT p.codigo, p.estado, p.negocio, p.destino, p.modelo, m.nombre AS nombre_modelo, m.plataforma,
-              (SELECT COUNT(*) FROM escaneos e WHERE e.codigo = p.codigo) AS total,
-              (SELECT COUNT(*) FROM escaneos e WHERE e.codigo = p.codigo AND e.fecha >= ?) AS ultimos30,
-              (SELECT COUNT(*) FROM escaneos e WHERE e.codigo = p.codigo AND e.canal = 'n') AS nfc
-       FROM placas p JOIN modelos m ON m.id = p.modelo
-       ${condiciones.length > 0 ? "WHERE " + condiciones.join(" AND ") : ""}
-       ORDER BY p.activada_en IS NULL, p.activada_en DESC, p.creada_en DESC, p.codigo
-       LIMIT ? OFFSET ?`,
+      `WITH pagina AS (
+         SELECT p.codigo, p.estado, p.negocio, p.destino, p.modelo, p.activada_en, p.creada_en
+         FROM placas p
+         ${condiciones.length > 0 ? "WHERE " + condiciones.join(" AND ") : ""}
+         ORDER BY ${orden}
+         LIMIT ? OFFSET ?
+       )
+       SELECT g.codigo, g.estado, g.negocio, g.destino, g.modelo, m.nombre AS nombre_modelo, m.plataforma,
+              COALESCE((SELECT SUM(t.cantidad) FROM escaneos_totales t WHERE t.codigo = g.codigo), 0) AS total,
+              COALESCE((SELECT SUM(d.cantidad) FROM escaneos_diarios d WHERE d.codigo = g.codigo AND d.dia >= ?), 0) AS ultimos30,
+              COALESCE((SELECT t.cantidad FROM escaneos_totales t WHERE t.codigo = g.codigo AND t.canal = 'n'), 0) AS nfc
+       FROM pagina g JOIN modelos m ON m.id = g.modelo
+       ORDER BY ${orden}`,
     )
     .bind(...valores)
     .all<PlacaEnLista>();

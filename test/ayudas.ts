@@ -2,6 +2,7 @@
 import { createExecutionContext, waitOnExecutionContext } from "cloudflare:test";
 import { env } from "cloudflare:workers";
 import worker from "../src/index";
+import { type Canal, sentenciasDeEscaneo } from "../src/lib/escaneos";
 import { NOMBRE_COOKIE, hashClave, valorDeSesion } from "../src/lib/auth";
 
 const BASE = "https://tokaloperu.com";
@@ -37,6 +38,8 @@ export async function crearLoteBase(): Promise<void> {
  */
 export async function vaciarBase(): Promise<void> {
   await env.DB.batch([
+    env.DB.prepare("DELETE FROM escaneos_diarios"),
+    env.DB.prepare("DELETE FROM escaneos_totales"),
     env.DB.prepare("DELETE FROM escaneos"),
     env.DB.prepare("DELETE FROM cambios_destino"),
     env.DB.prepare("DELETE FROM placas"),
@@ -44,6 +47,14 @@ export async function vaciarBase(): Promise<void> {
     env.DB.prepare("DELETE FROM intentos_login"),
     env.DB.prepare("DELETE FROM usuarios"),
   ]);
+}
+
+/**
+ * Registra un escaneo con la fecha que se quiera, por el mismo camino que
+ * usa el Worker (escaneo + resúmenes en una transacción).
+ */
+export async function escanear(codigo: string, canal: Canal, fechaUtc: string): Promise<void> {
+  await env.DB.batch(sentenciasDeEscaneo(env.DB, codigo, canal, fechaUtc, "PE", "ios"));
 }
 
 /** Ejecuta un archivo SQL entero: quita comentarios y separa por ";". */
