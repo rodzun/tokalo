@@ -206,9 +206,9 @@ Links de Maps compartidos desde iPhone (maps.app.goo.gl/...?g_st=ic): el primer 
 - Esquema comparado el 2026-11-12: las dos tablas de producción son idénticas a las de una
   base local limpia; solo sobra el índice `escaneos_diarios_dia`, que la 0008 elimina. La
   0007 no cambió después de aplicarse en producción. No hace falta una 0009.
-- Estado al 2026-11-12: desarrollo tiene 0007, 0008 y el código. Producción tiene solo la
-  0007 (aplicada por error; el código desplegado no usa las tablas). Subir a producción
-  requiere permiso del dueño y respaldo previo.
+- Desplegado en desarrollo y en producción el 2026-11-12 (migraciones 0007 y 0008). En
+  producción, tras desplegar: 2 escaneos y ambos resúmenes suman 2; sin el índice por día.
+- Pendiente: migración que quite el índice `escaneos_fecha` (ya no lo usa ningún código).
 
 ## Admin: presentación de datos (pedidos del dueño)
 
