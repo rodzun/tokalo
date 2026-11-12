@@ -18,6 +18,12 @@ El dueño trabaja solo, es backend Python y no sabe frontend.
   del público.
 - Antes de cualquier prueba en la nube con más de 100 solicitudes, estimar las filas que
   va a leer y pedir permiso al dueño.
+- Desplegar siempre con `npm run desplegar` o `npm run desplegar:produccion`: aplican
+  primero la migración y, si falla, abortan sin subir el código. Nunca `wrangler deploy`
+  suelto ni comandos encadenados con `;`. (El 2026-11-11 una migración falló por el cupo y
+  el código nuevo se desplegó igual sobre la base vieja en desarrollo.)
+- Toda migración debe ser compatible con el código anterior: añadir columnas o tablas, no
+  quitar ni renombrar en el mismo paso. Lo que sobra se elimina en una migración posterior.
 
 ## Decisión de lenguaje (paso 0, 2026-11-11)
 
@@ -265,8 +271,8 @@ Cada etapa se despliega primero a desarrollo; a producción solo con aviso previ
 | Worker | `tokalo-dev` | `tokalo` |
 | Dirección | tokalo-dev.tokaloperu.workers.dev | tokaloperu.com (www redirige a la raíz) |
 | Base D1 | `tokalo-dev` (con datos de prueba) | `tokalo` (sin datos de prueba) |
-| Desplegar | `npm run desplegar` | `npm run desplegar:produccion` (avisar antes) |
-| Migrar | `npm run migrar:dev` | `npm run migrar:produccion` |
+| Desplegar (migra y luego sube) | `npm run desplegar` | `npm run desplegar:produccion` (avisar antes) |
+| Solo migrar | `npm run migrar:dev` | `npm run migrar:produccion` |
 
 "Always Use HTTPS" está activado en la zona. El Worker no debe redirigir http a https.
 

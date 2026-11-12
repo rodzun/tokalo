@@ -43,18 +43,22 @@ npm run dev            # servidor local en http://localhost:8787
 Siempre primero a desarrollo, se prueba, y después a producción.
 
 ```bash
-# Desarrollo
-npm run migrar:dev     # solo si hay migraciones nuevas en migrations/
-npm run desplegar
-
-# Producción
-npm run migrar:produccion
-npm run desplegar:produccion
+npm run desplegar              # desarrollo
+npm run desplegar:produccion   # producción
 ```
 
-Un `wrangler deploy` a secas va a desarrollo: producción hay que pedirla a
-propósito. Si un cambio trae una migración, se aplica la migración antes de
-desplegar el código.
+Cada comando aplica primero las migraciones pendientes y después sube el
+código. Si la migración falla, se detiene ahí y el código no se despliega: así
+nunca queda código nuevo sobre una base vieja.
+
+Por lo mismo, toda migración debe funcionar también con el código anterior
+(que sigue atendiendo mientras se despliega): se añaden columnas o tablas, pero
+no se quitan ni se renombran en el mismo paso. Lo que sobra se elimina en una
+migración posterior, cuando ningún código lo use.
+
+Un `wrangler deploy` a secas va a desarrollo y no migra: usar siempre los
+comandos de arriba. `npm run migrar:dev` y `npm run migrar:produccion` aplican
+solo las migraciones.
 
 ## Usuarios
 
@@ -88,7 +92,9 @@ Su sesión deja de valer en la siguiente solicitud.
 4. **Códigos y QR**: lista las placas del lote; cada una tiene **Ver QR** y
    **Descargar QR** (archivo SVG, se puede escalar a cualquier tamaño).
 
-Un lote solo se puede eliminar si ninguna de sus placas fue activada.
+Un lote nace en estado **Generado**. Al mandarlo a imprenta se marca **Impreso**
+desde su pantalla (queda quién y cuándo); activar una de sus placas también lo
+marca. Solo se puede eliminar un lote en estado Generado.
 
 Si hace falta un modelo nuevo (por ejemplo, un tótem para Instagram), se crea
 antes en **Modelos**, indicando su plataforma.

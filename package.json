@@ -7,10 +7,10 @@
     "dev": "wrangler dev",
     "test": "vitest run",
     "revisar": "wrangler types && tsc --noEmit",
-    "desplegar": "wrangler deploy",
+    "desplegar": "npm run migrar:dev && wrangler deploy",
     "migrar:dev": "wrangler d1 migrations apply tokalo-dev --remote",
     "datos:dev": "wrangler d1 execute tokalo-dev --remote --file datos/prueba.sql",
-    "desplegar:produccion": "wrangler deploy --env produccion",
+    "desplegar:produccion": "npm run migrar:produccion && wrangler deploy --env produccion",
     "migrar:produccion": "wrangler d1 migrations apply tokalo --env produccion --remote",
     "respaldar": "python3 scripts/respaldar.py produccion",
     "respaldar:dev": "python3 scripts/respaldar.py dev"
