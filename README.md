@@ -33,7 +33,7 @@ npx wrangler login     # autoriza a wrangler en la cuenta de Cloudflare
 ## Comandos del día a día
 
 ```bash
-npm test               # corre todos los tests
+npm test               # corre todos los tests (Worker y candado de despliegue)
 npm run revisar        # revisa los tipos de TypeScript
 npm run dev            # servidor local en http://localhost:8787
 ```
@@ -55,6 +55,10 @@ Por lo mismo, toda migración debe funcionar también con el código anterior
 (que sigue atendiendo mientras se despliega): se añaden columnas o tablas, pero
 no se quitan ni se renombran en el mismo paso. Lo que sobra se elimina en una
 migración posterior, cuando ningún código lo use.
+
+El comando de producción tiene además un candado: se niega a migrar o a
+desplegar si hay cambios sin commit, o archivos nuevos sin seguimiento en
+`src/` o `migrations/`. Así producción solo recibe lo que está guardado en git.
 
 Un `wrangler deploy` a secas va a desarrollo y no migra: usar siempre los
 comandos de arriba. `npm run migrar:dev` y `npm run migrar:produccion` aplican

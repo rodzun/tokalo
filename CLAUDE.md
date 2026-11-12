@@ -22,10 +22,15 @@ El dueño trabaja solo, es backend Python y no sabe frontend.
   primero la migración y, si falla, abortan sin subir el código. Nunca `wrangler deploy`
   suelto ni comandos encadenados con `;`. (El 2026-11-11 una migración falló por el cupo y
   el código nuevo se desplegó igual sobre la base vieja en desarrollo.)
-- Desplegar solo con el árbol de git limpio (todo en un commit), y no editar el proyecto
-  mientras corre algo que despliega. (El 2026-11-12 un script de medición redesplegaba
-  producción mientras se escribía la tabla resumen: la migración 0007 y código a medio
-  hacer llegaron a producción sin permiso.)
+- Candado: `npm run desplegar:produccion` y `npm run migrar:produccion` abortan si git
+  tiene cambios sin commit, o archivos nuevos sin seguimiento en `src/` o `migrations/`
+  (`scripts/candado_despliegue.py`, con tests en `scripts/test_candado_despliegue.py`).
+  No saltárselo llamando a `wrangler` directamente contra producción.
+- Ningún script de medición despliega a producción, ni la migra. Si hace falta forzar
+  arranques en frío en producción, pedirlo al dueño y decidirlo con él.
+- No editar el proyecto mientras corre algo que despliega. (El 2026-11-12 un script de
+  medición redesplegaba producción mientras se escribía la tabla resumen: la migración
+  0007 y código a medio hacer llegaron a producción sin permiso.)
 - Toda migración debe ser compatible con el código anterior: añadir columnas o tablas, no
   quitar ni renombrar en el mismo paso. Lo que sobra se elimina en una migración posterior.
 

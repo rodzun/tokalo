@@ -5,13 +5,13 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
-    "test": "vitest run",
+    "test": "vitest run && python3 -m unittest discover -s scripts -p 'test_*.py'",
     "revisar": "wrangler types && tsc --noEmit",
     "desplegar": "npm run migrar:dev && wrangler deploy",
     "migrar:dev": "wrangler d1 migrations apply tokalo-dev --remote",
     "datos:dev": "wrangler d1 execute tokalo-dev --remote --file datos/prueba.sql",
-    "desplegar:produccion": "npm run migrar:produccion && wrangler deploy --env produccion",
-    "migrar:produccion": "wrangler d1 migrations apply tokalo --env produccion --remote",
+    "desplegar:produccion": "npm run migrar:produccion && python3 scripts/candado_despliegue.py && wrangler deploy --env produccion",
+    "migrar:produccion": "python3 scripts/candado_despliegue.py && wrangler d1 migrations apply tokalo --env produccion --remote",
     "respaldar": "python3 scripts/respaldar.py produccion",
     "respaldar:dev": "python3 scripts/respaldar.py dev"
   },
