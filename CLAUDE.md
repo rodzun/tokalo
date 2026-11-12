@@ -199,9 +199,16 @@ Links de Maps compartidos desde iPhone (maps.app.goo.gl/...?g_st=ic): el primer 
   primaria para evitarlo. Revisar con EXPLAIN QUERY PLAN al tocar esa consulta.
 - Tras desplegar, comprobar que `SELECT SUM(cantidad)` de cada resumen es igual a
   `SELECT COUNT(*) FROM escaneos`. Si no, repetir las sentencias de relleno de la 0008.
-- Estado al 2026-11-12: código en un commit local, SIN desplegar. Producción tiene aplicada
-  la 0007 por error (tablas con datos coherentes, el código desplegado no las usa);
-  desarrollo no tiene ninguna. Pendiente de decisión del dueño.
+- CPU medido en desarrollo el 2026-11-12 (64 solicitudes, base pequeña: 9 placas y 33
+  escaneos): escaneo prom. 1,1 ms (máx. 3; 3 en frío); lista 1,6 (máx. 3); reporte 1,4
+  (máx. 3; 5 en frío); CSV 1,0; ficha 1,5. Con muchos datos NO está medido desplegado: las
+  pruebas de carga en la nube están prohibidas.
+- Esquema comparado el 2026-11-12: las dos tablas de producción son idénticas a las de una
+  base local limpia; solo sobra el índice `escaneos_diarios_dia`, que la 0008 elimina. La
+  0007 no cambió después de aplicarse en producción. No hace falta una 0009.
+- Estado al 2026-11-12: desarrollo tiene 0007, 0008 y el código. Producción tiene solo la
+  0007 (aplicada por error; el código desplegado no usa las tablas). Subir a producción
+  requiere permiso del dueño y respaldo previo.
 
 ## Admin: presentación de datos (pedidos del dueño)
 
